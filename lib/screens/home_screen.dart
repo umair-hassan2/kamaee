@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../database_helper.dart';
+import '../services/finance_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 import 'barcode_scanner_screen.dart';
+import 'finance_screen.dart';
 import 'inventory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -13,7 +15,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  double _balance = 0.0;
+  final _financeService = FinanceService();
+  double _todayRevenue = 0;
+  double _todayProfit = 0;
   int _itemCount = 0;
   int _totalUnits = 0;
 
@@ -24,20 +28,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final summary = await _financeService.getTodaySummary();
     final items = await DatabaseHelper().getAllItems();
     if (!mounted) return;
     setState(() {
-      _balance = prefs.getDouble('balance') ?? 0.0;
+      _todayRevenue = summary.revenue;
+      _todayProfit = summary.profit;
       _itemCount = items.length;
       _totalUnits = items.fold(0, (sum, item) => sum + item.quantity);
     });
-  }
-
-  Future<void> _resetBalance() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('balance', 0.0);
-    setState(() => _balance = 0.0);
   }
 
   Future<void> _navigateToScanner(ScanMode mode) async {
@@ -58,180 +57,152 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadData();
   }
 
-  String _formatBalance(double amount) => '\$${amount.toStringAsFixed(2)}';
+  Future<void> _navigateToFinance() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const FinanceScreen()),
+    );
+    await _loadData();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 140,
-            pinned: true,
-            actions: [
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'reset') _showResetConfirmation();
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'reset',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh, color: AppColors.danger),
-                        SizedBox(width: 8),
-                        Text('Reset Balance'),
-                      ],
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _HomeHeader()),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _TodaySummaryCard(
+                      revenue: _todayRevenue,
+                      profit: _todayProfit,
+                      itemCount: _itemCount,
+                      totalUnits: _totalUnits,
                     ),
-                  ),
-                ],
-              ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Kamaae'),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                  ),
-                ),
-                child: const Align(
-                  alignment: Alignment.bottomRight,
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Icon(
-                      Icons.storefront,
-                      size: 80,
-                      color: Colors.white24,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF134E4A), AppColors.primaryDark],
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Quick Actions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Today\'s Revenue',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _formatBalance(_balance),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 42,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            _BalanceStat(
-                              label: 'Products',
-                              value: '$_itemCount',
-                            ),
-                            const SizedBox(width: 24),
-                            _BalanceStat(
-                              label: 'Units in stock',
-                              value: '$_totalUnits',
-                            ),
-                          ],
-                        ),
-                      ],
+                    const SizedBox(height: 14),
+                    _ActionCard(
+                      title: 'Scan Barcode',
+                      subtitle: 'Sell or restock with product barcodes',
+                      icon: Icons.barcode_reader,
+                      color: AppColors.primary,
+                      onTap: () => _navigateToScanner(ScanMode.barcode),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'Scan QR Code',
+                      subtitle: 'Sell or restock with QR codes',
+                      icon: Icons.qr_code_2,
+                      color: AppColors.accent,
+                      onTap: () => _navigateToScanner(ScanMode.qr),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  _ActionCard(
-                    title: 'Scan Barcode',
-                    subtitle: 'Sell or restock with product barcodes',
-                    icon: Icons.barcode_reader,
-                    color: AppColors.primary,
-                    onTap: () => _navigateToScanner(ScanMode.barcode),
-                  ),
-                  const SizedBox(height: 12),
-                  _ActionCard(
-                    title: 'Scan QR Code',
-                    subtitle: 'Sell or restock with QR codes',
-                    icon: Icons.qr_code_2,
-                    color: AppColors.accent,
-                    onTap: () => _navigateToScanner(ScanMode.qr),
-                  ),
-                  const SizedBox(height: 12),
-                  _ActionCard(
-                    title: 'View Inventory',
-                    subtitle: 'Browse, search, and manage stock',
-                    icon: Icons.inventory_2_outlined,
-                    color: AppColors.restock,
-                    onTap: _navigateToInventory,
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'View Inventory',
+                      subtitle: 'Browse, search, and manage stock',
+                      icon: Icons.inventory_2_outlined,
+                      color: AppColors.restock,
+                      onTap: _navigateToInventory,
+                    ),
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'Cash Flow',
+                      subtitle: 'Charts, history, and cost analysis',
+                      icon: Icons.insights_outlined,
+                      color: AppColors.sell,
+                      onTap: _navigateToFinance,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  void _showResetConfirmation() {
-    showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Balance'),
-        content: const Text(
-          'Are you sure you want to reset today\'s revenue to \$0.00?',
+class _HomeHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 28),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryDark],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'assets/images/kamaae_splash_logo.png',
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, true);
-              _resetBalance();
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('Reset'),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Kamaae',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Inventory & sales',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -239,27 +210,158 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _BalanceStat extends StatelessWidget {
-  final String label;
-  final String value;
+class _TodaySummaryCard extends StatelessWidget {
+  final double revenue;
+  final double profit;
+  final int itemCount;
+  final int totalUnits;
 
-  const _BalanceStat({required this.label, required this.value});
+  const _TodaySummaryCard({
+    required this.revenue,
+    required this.profit,
+    required this.itemCount,
+    required this.totalUnits,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+    return Transform.translate(
+      offset: const Offset(0, -12),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Today',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _TodayMetric(
+                    label: 'Revenue',
+                    value: formatPkr(revenue),
+                    color: AppColors.sell,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 48,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: _TodayMetric(
+                    label: 'Profit',
+                    value: formatPkr(profit),
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  _StockPill(
+                    icon: Icons.category_outlined,
+                    label: '$itemCount products',
+                  ),
+                  const SizedBox(width: 12),
+                  _StockPill(
+                    icon: Icons.inventory_outlined,
+                    label: '$totalUnits units in stock',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _TodayMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _StockPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.muted),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -298,7 +400,7 @@ class _ActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: color, size: 28),
@@ -318,7 +420,7 @@ class _ActionCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 13, color: AppColors.muted),
+                      style: const TextStyle(fontSize: 13, color: AppColors.muted),
                     ),
                   ],
                 ),

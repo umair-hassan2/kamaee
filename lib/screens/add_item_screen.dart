@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 
 class AddItemScreen extends StatefulWidget {
   final String barcode;
@@ -78,7 +79,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Scanned Barcode',
+                            'Scanned Code',
                             style: TextStyle(
                               fontSize: 12,
                               color: AppColors.muted,
@@ -118,7 +119,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Purchase Price',
                   prefixIcon: Icon(Icons.shopping_cart_outlined),
-                  prefixText: '\$ ',
+                  prefixText: pkrPrefix,
                 ),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
@@ -139,7 +140,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Selling Price',
                   prefixIcon: Icon(Icons.sell_outlined),
-                  prefixText: '\$ ',
+                  prefixText: pkrPrefix,
                 ),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),

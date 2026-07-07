@@ -1,9 +1,10 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
+import 'finance_service.dart';
 
 class InventoryService {
   final DatabaseHelper _db = DatabaseHelper();
+  final InventoryFinanceLogger _finance = InventoryFinanceLogger();
 
   Future<Item> sellItem(Item item, int quantity) async {
     if (quantity <= 0) {
@@ -15,10 +16,7 @@ class InventoryService {
 
     final updated = item.copyWith(quantity: item.quantity - quantity);
     await _db.updateItem(updated);
-
-    final prefs = await SharedPreferences.getInstance();
-    final balance = prefs.getDouble('balance') ?? 0.0;
-    await prefs.setDouble('balance', balance + (item.sellingPrice * quantity));
+    await _finance.logSell(item, quantity);
 
     return updated;
   }
@@ -30,6 +28,8 @@ class InventoryService {
 
     final updated = item.copyWith(quantity: item.quantity + quantity);
     await _db.updateItem(updated);
+    await _finance.logRestock(item, quantity);
+
     return updated;
   }
 }

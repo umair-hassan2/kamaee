@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/item.dart';
 import '../services/inventory_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 
 enum ItemActionMode { sell, restock }
 
@@ -94,7 +95,7 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
           SnackBar(
             content: Text(
               'Sold $_quantity × "${item.name}" '
-              '(\$${(item.sellingPrice * _quantity).toStringAsFixed(2)})',
+              '(${formatPkr(item.sellingPrice * _quantity)})',
             ),
             backgroundColor: AppColors.sell,
           ),
@@ -157,7 +158,7 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.inventory_2, color: AppColors.primary),
@@ -176,7 +177,7 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
                     const SizedBox(height: 4),
                     Text(
                       item.barcode,
-                      style: TextStyle(color: AppColors.muted, fontSize: 13),
+                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -202,13 +203,13 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
                 const SizedBox(width: 12),
                 _InfoChip(
                   label: 'Sell Price',
-                  value: '\$${item.sellingPrice.toStringAsFixed(2)}',
+                  value: formatPkr(item.sellingPrice),
                   color: AppColors.sell,
                 ),
                 const SizedBox(width: 12),
                 _InfoChip(
                   label: 'Cost',
-                  value: '\$${item.purchasePrice.toStringAsFixed(2)}',
+                  value: formatPkr(item.purchasePrice),
                   color: AppColors.muted,
                 ),
               ],
@@ -278,7 +279,7 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.danger.withOpacity(0.08),
+                color: AppColors.danger.withValues(alpha:0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Row(
@@ -302,10 +303,10 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
             children: [
               Text(
                 _mode == ItemActionMode.sell ? 'Total sale' : 'Restock cost',
-                style: TextStyle(color: AppColors.muted, fontSize: 14),
+                style: const TextStyle(color: AppColors.muted, fontSize: 14),
               ),
               Text(
-                '\$${total.toStringAsFixed(2)}',
+                formatPkr(total),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -365,7 +366,7 @@ class _StockBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha:0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -396,7 +397,7 @@ class _InfoChip extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: AppColors.muted)),
+          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
           const SizedBox(height: 4),
           Text(
             value,
@@ -424,7 +425,7 @@ class _QtyButton extends StatelessWidget {
       onPressed: onPressed,
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        backgroundColor: AppColors.primary.withOpacity(0.1),
+        backgroundColor: AppColors.primary.withValues(alpha:0.1),
         foregroundColor: AppColors.primary,
       ),
     );

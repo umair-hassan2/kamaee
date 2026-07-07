@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 import '../widgets/item_action_sheet.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -182,7 +183,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Text(
+                      const Text(
                         'Sort by',
                         style: TextStyle(color: AppColors.muted, fontSize: 13),
                       ),
@@ -307,7 +308,7 @@ class _SummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -317,7 +318,9 @@ class _SummaryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                Text(label,
+                    style:
+                        const TextStyle(fontSize: 11, color: AppColors.muted)),
                 Text(
                   value,
                   style: const TextStyle(
@@ -353,7 +356,7 @@ class _SortChip extends StatelessWidget {
         label: Text(label),
         selected: selected,
         onSelected: (_) => onTap(),
-        selectedColor: AppColors.primary.withOpacity(0.15),
+        selectedColor: AppColors.primary.withValues(alpha: 0.15),
         checkmarkColor: AppColors.primary,
       ),
     );
@@ -398,7 +401,7 @@ class _InventoryItemCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.shopping_bag_outlined,
@@ -419,7 +422,8 @@ class _InventoryItemCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       item.barcode,
-                      style: TextStyle(fontSize: 12, color: AppColors.muted),
+                      style:
+                          const TextStyle(fontSize: 12, color: AppColors.muted),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -430,7 +434,7 @@ class _InventoryItemCard extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: _stockColor.withOpacity(0.12),
+                            color: _stockColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -445,7 +449,7 @@ class _InventoryItemCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           'Qty: ${item.quantity}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.muted,
                           ),
@@ -459,7 +463,7 @@ class _InventoryItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '\$${item.sellingPrice.toStringAsFixed(2)}',
+                    formatPkr(item.sellingPrice),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -467,7 +471,7 @@ class _InventoryItemCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  const Text(
                     'tap to manage',
                     style: TextStyle(fontSize: 11, color: AppColors.muted),
                   ),

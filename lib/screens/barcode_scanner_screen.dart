@@ -223,7 +223,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     ),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'What would you like to do next?',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.muted, fontSize: 14),
