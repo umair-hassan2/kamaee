@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
+import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SettingsService().load();
   runApp(const MyApp());
 }
 

@@ -13,6 +13,7 @@ void main() {
         purchasePrice: 40,
         sellingPrice: 60,
         quantity: 5,
+        photoPath: '/tmp/soap.jpg',
       );
 
       final restored = Item.fromMap(item.toMap());
@@ -23,6 +24,7 @@ void main() {
       expect(restored.purchasePrice, 40);
       expect(restored.sellingPrice, 60);
       expect(restored.quantity, 5);
+      expect(restored.photoPath, '/tmp/soap.jpg');
     });
 
     test('copyWith updates selected fields', () {

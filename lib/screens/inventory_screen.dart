@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/item_action_sheet.dart';
+import '../widgets/item_photo_widget.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -14,6 +16,7 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   final _db = DatabaseHelper();
+  final _settingsService = SettingsService();
   final _searchController = TextEditingController();
   List<Item> _items = [];
   List<Item> _filtered = [];
@@ -92,10 +95,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   int get _totalUnits => _items.fold(0, (sum, item) => sum + item.quantity);
 
-  int get _lowStockCount =>
-      _items.where((item) => item.quantity > 0 && item.quantity <= 5).length;
+  int get _lowStockCount => _items
+      .where((item) => _settingsService.isLowStock(item.quantity))
+      .length;
 
-  int get _outOfStockCount => _items.where((item) => item.quantity <= 0).length;
+  int get _outOfStockCount =>
+      _items.where((item) => _settingsService.isOutOfStock(item.quantity)).length;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +275,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   final item = _filtered[index];
                   return _InventoryItemCard(
                     item: item,
+                    lowStockThreshold: _settingsService.lowStockThreshold,
                     onTap: () => _openItemActions(item),
                   );
                 },
@@ -365,19 +371,24 @@ class _SortChip extends StatelessWidget {
 
 class _InventoryItemCard extends StatelessWidget {
   final Item item;
+  final int lowStockThreshold;
   final VoidCallback onTap;
 
-  const _InventoryItemCard({required this.item, required this.onTap});
+  const _InventoryItemCard({
+    required this.item,
+    required this.lowStockThreshold,
+    required this.onTap,
+  });
 
   Color get _stockColor {
     if (item.quantity <= 0) return AppColors.danger;
-    if (item.quantity <= 5) return AppColors.warning;
+    if (item.quantity <= lowStockThreshold) return AppColors.warning;
     return AppColors.sell;
   }
 
   String get _stockLabel {
     if (item.quantity <= 0) return 'Out of stock';
-    if (item.quantity <= 5) return 'Low stock';
+    if (item.quantity <= lowStockThreshold) return 'Low stock';
     return 'In stock';
   }
 
@@ -397,16 +408,7 @@ class _InventoryItemCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.shopping_bag_outlined,
-                    color: AppColors.primary),
-              ),
+              ItemPhotoWidget(photoPath: item.photoPath),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

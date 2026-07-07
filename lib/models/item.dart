@@ -5,6 +5,7 @@ class Item {
   final double purchasePrice;
   final double sellingPrice;
   int quantity;
+  final String? photoPath;
 
   Item({
     this.id,
@@ -13,6 +14,7 @@ class Item {
     required this.purchasePrice,
     required this.sellingPrice,
     required this.quantity,
+    this.photoPath,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +25,7 @@ class Item {
       "purchase_price": purchasePrice,
       "selling_price": sellingPrice,
       "quantity": quantity,
+      "photo_path": photoPath,
     };
   }
 
@@ -34,10 +37,20 @@ class Item {
       purchasePrice: (map["purchase_price"] as num).toDouble(),
       sellingPrice: (map["selling_price"] as num).toDouble(),
       quantity: map["quantity"] as int,
+      photoPath: map["photo_path"] as String?,
     );
   }
 
-  Item copyWith({int? id, String? barcode, String? name, double? purchasePrice, double? sellingPrice, int? quantity}) {
+  Item copyWith({
+    int? id,
+    String? barcode,
+    String? name,
+    double? purchasePrice,
+    double? sellingPrice,
+    int? quantity,
+    String? photoPath,
+    bool clearPhotoPath = false,
+  }) {
     return Item(
       id: id ?? this.id,
       barcode: barcode ?? this.barcode,
@@ -45,6 +58,7 @@ class Item {
       purchasePrice: purchasePrice ?? this.purchasePrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       quantity: quantity ?? this.quantity,
+      photoPath: clearPhotoPath ? null : (photoPath ?? this.photoPath),
     );
   }
 }

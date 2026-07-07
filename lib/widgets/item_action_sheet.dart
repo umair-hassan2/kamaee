@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/item.dart';
+import '../screens/edit_item_screen.dart';
 import '../services/inventory_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/item_photo_widget.dart';
 
 enum ItemActionMode { sell, restock }
 
@@ -25,6 +28,7 @@ class ItemActionSheet extends StatefulWidget {
 
 class _ItemActionSheetState extends State<ItemActionSheet> {
   final _inventoryService = InventoryService();
+  final _settingsService = SettingsService();
   final _quantityController = TextEditingController(text: '1');
   ItemActionMode _mode = ItemActionMode.sell;
   int _quantity = 1;
@@ -124,9 +128,22 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
     }
   }
 
+  Future<void> _openEdit() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditItemScreen(item: item),
+      ),
+    );
+    if (updated == true && mounted) {
+      widget.onDone();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final stockStatus = _stockLabel(item.quantity);
+    final threshold = _settingsService.lowStockThreshold;
+    final stockStatus = _stockLabel(item.quantity, threshold);
     final total = _mode == ItemActionMode.sell
         ? item.sellingPrice * _quantity
         : item.purchasePrice * _quantity;
@@ -155,13 +172,10 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
           const SizedBox(height: 20),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.inventory_2, color: AppColors.primary),
+              ItemPhotoWidget(
+                photoPath: item.photoPath,
+                size: 52,
+                borderRadius: 12,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -183,6 +197,11 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
                 ),
               ),
               _StockBadge(label: stockStatus.label, color: stockStatus.color),
+              IconButton(
+                onPressed: _isLoading ? null : _openEdit,
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit item',
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -348,9 +367,9 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
     );
   }
 
-  ({String label, Color color}) _stockLabel(int qty) {
+  ({String label, Color color}) _stockLabel(int qty, int threshold) {
     if (qty <= 0) return (label: 'Out', color: AppColors.danger);
-    if (qty <= 5) return (label: 'Low', color: AppColors.warning);
+    if (qty <= threshold) return (label: 'Low', color: AppColors.warning);
     return (label: 'OK', color: AppColors.sell);
   }
 }

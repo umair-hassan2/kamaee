@@ -8,29 +8,46 @@ import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/item_photo_picker.dart';
 
-class AddItemScreen extends StatefulWidget {
-  final String barcode;
+class EditItemScreen extends StatefulWidget {
+  final Item item;
 
-  const AddItemScreen({super.key, required this.barcode});
+  const EditItemScreen({super.key, required this.item});
 
   @override
-  State<AddItemScreen> createState() => _AddItemScreenState();
+  State<EditItemScreen> createState() => _EditItemScreenState();
 }
 
-class _AddItemScreenState extends State<AddItemScreen> {
+class _EditItemScreenState extends State<EditItemScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _purchasePriceController = TextEditingController();
-  final _sellingPriceController = TextEditingController();
-  final _quantityController = TextEditingController(text: '1');
+  final _db = DatabaseHelper();
   final _imageStorage = ImageStorageService();
+  late final TextEditingController _nameController;
+  late final TextEditingController _barcodeController;
+  late final TextEditingController _purchasePriceController;
+  late final TextEditingController _sellingPriceController;
+  late final TextEditingController _quantityController;
   File? _pendingPhoto;
   bool _photoRemoved = false;
   bool _isSaving = false;
+  bool _isDeleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.item;
+    _nameController = TextEditingController(text: item.name);
+    _barcodeController = TextEditingController(text: item.barcode);
+    _purchasePriceController =
+        TextEditingController(text: item.purchasePrice.toString());
+    _sellingPriceController =
+        TextEditingController(text: item.sellingPrice.toString());
+    _quantityController = TextEditingController(text: item.quantity.toString());
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _barcodeController.dispose();
     _purchasePriceController.dispose();
     _sellingPriceController.dispose();
     _quantityController.dispose();
@@ -42,31 +59,82 @@ class _AddItemScreenState extends State<AddItemScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final item = Item(
-        barcode: widget.barcode,
+      final itemId = widget.item.id!;
+      String? photoPath = widget.item.photoPath;
+
+      if (_photoRemoved) {
+        await _imageStorage.deletePhoto(photoPath);
+        photoPath = null;
+      } else if (_pendingPhoto != null) {
+        await _imageStorage.deletePhoto(photoPath);
+        photoPath = await _imageStorage.saveItemPhoto(_pendingPhoto!, itemId);
+      }
+
+      final updated = Item(
+        id: itemId,
+        barcode: _barcodeController.text.trim(),
         name: _nameController.text.trim(),
         purchasePrice: double.parse(_purchasePriceController.text.trim()),
         sellingPrice: double.parse(_sellingPriceController.text.trim()),
         quantity: int.parse(_quantityController.text.trim()),
+        photoPath: photoPath,
       );
 
-      final id = await DatabaseHelper().insertItem(item);
-      String? photoPath;
-      if (_pendingPhoto != null) {
-        photoPath = await _imageStorage.saveItemPhoto(_pendingPhoto!, id);
-        await DatabaseHelper().updateItem(item.copyWith(id: id, photoPath: photoPath));
-      }
-
-      if (mounted) Navigator.pop(context);
+      await _db.updateItem(updated);
+      if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Item?'),
+        content: Text(
+          'Remove "${widget.item.name}" from inventory? '
+          'Past sales history will be kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || _isDeleting) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await _imageStorage.deletePhotosForItem(widget.item.id!);
+      await _db.deleteItem(widget.item.id!);
+      if (mounted) Navigator.pop(context, true);
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add New Item')),
+      appBar: AppBar(
+        title: const Text('Edit Item'),
+        actions: [
+          IconButton(
+            onPressed: _isDeleting || _isSaving ? null : _confirmDelete,
+            icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+            tooltip: 'Delete item',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -74,46 +142,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.qr_code_2, color: AppColors.primary),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Scanned Code',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.muted,
-                            ),
-                          ),
-                          Text(
-                            widget.barcode,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
               ItemPhotoPicker(
-                currentPhotoPath: null,
+                currentPhotoPath: widget.item.photoPath,
                 pendingPhoto: _pendingPhoto,
                 photoRemoved: _photoRemoved,
                 onPhotoChanged: (file) => setState(() {
@@ -142,6 +172,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _barcodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Barcode / QR Code',
+                  prefixIcon: Icon(Icons.qr_code_2),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a barcode';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _purchasePriceController,
                 decoration: InputDecoration(
                   labelText: 'Purchase Price',
@@ -155,8 +199,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     return 'Please enter a purchase price';
                   }
                   final parsed = double.tryParse(value.trim());
-                  if (parsed == null || parsed <= 0) {
-                    return 'Enter a valid price greater than 0';
+                  if (parsed == null || parsed < 0) {
+                    return 'Enter a valid price';
                   }
                   return null;
                 },
@@ -176,8 +220,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     return 'Please enter a selling price';
                   }
                   final parsed = double.tryParse(value.trim());
-                  if (parsed == null || parsed <= 0) {
-                    return 'Enter a valid price greater than 0';
+                  if (parsed == null || parsed < 0) {
+                    return 'Enter a valid price';
                   }
                   return null;
                 },
@@ -186,7 +230,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
               TextFormField(
                 controller: _quantityController,
                 decoration: const InputDecoration(
-                  labelText: 'Initial Stock Quantity',
+                  labelText: 'Stock Quantity',
                   prefixIcon: Icon(Icons.inventory_outlined),
                 ),
                 keyboardType: TextInputType.number,
@@ -195,15 +239,15 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     return 'Please enter a quantity';
                   }
                   final parsed = int.tryParse(value.trim());
-                  if (parsed == null || parsed <= 0) {
-                    return 'Enter a valid quantity greater than 0';
+                  if (parsed == null || parsed < 0) {
+                    return 'Enter a valid quantity';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 28),
               FilledButton(
-                onPressed: _isSaving ? null : _saveItem,
+                onPressed: _isSaving || _isDeleting ? null : _saveItem,
                 child: _isSaving
                     ? const SizedBox(
                         height: 22,
@@ -213,7 +257,22 @@ class _AddItemScreenState extends State<AddItemScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Save to Inventory'),
+                    : const Text('Save Changes'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                onPressed: _isSaving || _isDeleting ? null : _confirmDelete,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  side: const BorderSide(color: AppColors.danger),
+                ),
+                child: _isDeleting
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Delete Item'),
               ),
             ],
           ),

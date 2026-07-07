@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../database_helper.dart';
 import '../services/finance_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import 'barcode_scanner_screen.dart';
 import 'finance_screen.dart';
 import 'inventory_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _financeService = FinanceService();
+  final _settingsService = SettingsService();
   double _todayRevenue = 0;
   double _todayProfit = 0;
   int _itemCount = 0;
@@ -65,6 +68,17 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadData();
   }
 
+  Future<void> _navigateToSettings() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+    );
+    if (updated == true) {
+      await _loadData();
+      if (mounted) setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,7 +86,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: _loadData,
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _HomeHeader()),
+            SliverToBoxAdapter(
+              child: _HomeHeader(
+                shopName: _settingsService.settings.shopName,
+                ownerName: _settingsService.settings.ownerName,
+                onSettingsTap: _navigateToSettings,
+              ),
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -126,6 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: AppColors.sell,
                       onTap: _navigateToFinance,
                     ),
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'Settings',
+                      subtitle: 'Shop profile, currency, stock alerts',
+                      icon: Icons.settings_outlined,
+                      color: AppColors.muted,
+                      onTap: _navigateToSettings,
+                    ),
                   ],
                 ),
               ),
@@ -138,6 +166,23 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
+  final String shopName;
+  final String ownerName;
+  final VoidCallback onSettingsTap;
+
+  const _HomeHeader({
+    required this.shopName,
+    required this.ownerName,
+    required this.onSettingsTap,
+  });
+
+  String get _title => shopName.isNotEmpty ? shopName : 'Kamaae';
+
+  String get _subtitle {
+    if (ownerName.isNotEmpty) return ownerName;
+    return 'Inventory & sales';
+  }
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
@@ -182,9 +227,9 @@ class _HomeHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Kamaae',
-                  style: TextStyle(
+                Text(
+                  _title,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -194,7 +239,7 @@ class _HomeHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Inventory & sales',
+                  _subtitle,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.82),
                     fontSize: 14,
@@ -203,6 +248,11 @@ class _HomeHeader extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            onPressed: onSettingsTap,
+            icon: const Icon(Icons.settings_outlined, color: Colors.white),
+            tooltip: 'Settings',
           ),
         ],
       ),

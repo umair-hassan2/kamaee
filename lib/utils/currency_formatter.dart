@@ -1,11 +1,11 @@
-import 'package:intl/intl.dart';
+import '../services/settings_service.dart';
 
-final _pkrFormat = NumberFormat.currency(
-  locale: 'en_PK',
-  symbol: 'Rs ',
-  decimalDigits: 0,
-);
+String formatPkr(double amount) =>
+    SettingsService().formatCurrency(amount);
 
-String formatPkr(double amount) => _pkrFormat.format(amount);
+String get pkrPrefix => SettingsService().currencyPrefix;
 
-const String pkrPrefix = 'Rs ';
+String formatCurrency(double amount) =>
+    SettingsService().formatCurrency(amount);
+
+String get currencyPrefix => SettingsService().currencyPrefix;

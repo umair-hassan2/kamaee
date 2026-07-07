@@ -33,7 +33,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -47,7 +47,8 @@ class DatabaseHelper {
       'name TEXT, '
       'purchase_price REAL, '
       'selling_price REAL, '
-      'quantity INTEGER'
+      'quantity INTEGER, '
+      'photo_path TEXT'
       ')',
     );
     await _createTransactionsTable(db);
@@ -56,6 +57,9 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createTransactionsTable(db);
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE items ADD COLUMN photo_path TEXT');
     }
   }
 
@@ -110,6 +114,18 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [item.id],
     );
+  }
+
+  Future<int> deleteItem(int id) async {
+    final db = await database;
+    return db.delete('items', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<Item?> getItemById(int id) async {
+    final db = await database;
+    final maps = await db.query('items', where: 'id = ?', whereArgs: [id]);
+    if (maps.isEmpty) return null;
+    return Item.fromMap(maps.first);
   }
 
   Future<List<Item>> getAllItems() async {

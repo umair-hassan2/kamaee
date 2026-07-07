@@ -56,4 +56,14 @@ void main() {
     expect(txs, hasLength(1));
     expect(txs.first.profit, 50);
   });
+
+  test('deletes item by id', () async {
+    final item = await insertTestItem(db, barcode: 'DEL-001');
+
+    final deleted = await db.deleteItem(item.id!);
+    final found = await db.getItemByBarcode('DEL-001');
+
+    expect(deleted, 1);
+    expect(found, isNull);
+  });
 }
