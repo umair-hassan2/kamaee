@@ -1,8 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/expense.dart';
 import '../models/finance_models.dart';
 import '../models/transaction.dart';
+import '../services/expense_service.dart';
 import '../services/export_service.dart';
 import '../services/finance_service.dart';
 import '../theme/app_theme.dart';
@@ -17,12 +19,15 @@ class FinanceScreen extends StatefulWidget {
 
 class _FinanceScreenState extends State<FinanceScreen> {
   final _financeService = FinanceService();
+  final _expenseService = ExpenseService();
   FinancePeriod _period = FinancePeriod.today;
 
   PeriodSummary _summary = const PeriodSummary();
   List<ChartDataPoint> _chartData = [];
   List<ProductBreakdown> _topProducts = [];
   List<SaleTransaction> _transactions = [];
+  List<Expense> _expenses = [];
+  double _totalExpenses = 0;
   double _inventoryValue = 0;
   bool _isLoading = true;
   bool _isExporting = false;
@@ -35,12 +40,15 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+    final (from, to) = _financeService.rangeForPeriod(_period);
     final results = await Future.wait([
       _financeService.getSummaryForPeriod(_period),
       _financeService.getChartData(_period),
       _financeService.getTopProducts(_period),
       _financeService.getTransactions(_period),
       _financeService.getInventoryValue(),
+      _expenseService.getExpenses(from: from, to: to),
+      _expenseService.getTotalExpenses(from: from, to: to),
     ]);
     if (!mounted) return;
     setState(() {
@@ -49,6 +57,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
       _topProducts = results[2] as List<ProductBreakdown>;
       _transactions = results[3] as List<SaleTransaction>;
       _inventoryValue = results[4] as double;
+      _expenses = results[5] as List<Expense>;
+      _totalExpenses = results[6] as double;
       _isLoading = false;
     });
   }
@@ -80,9 +90,117 @@ class _FinanceScreenState extends State<FinanceScreen> {
     }
   }
 
+  void _showAddExpenseSheet() {
+    String selectedCategory = expenseCategories.first;
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Add Expense',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: expenseCategories.map((cat) {
+                    final selected = cat == selectedCategory;
+                    return FilterChip(
+                      label: Text(cat),
+                      selected: selected,
+                      onSelected: (_) => setSheetState(() => selectedCategory = cat),
+                      selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                      checkmarkColor: AppColors.primary,
+                      labelStyle: TextStyle(
+                        color: selected ? AppColors.primary : AppColors.muted,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount *',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter amount';
+                    if (double.tryParse(v.trim()) == null) return 'Invalid number';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: noteController,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    final expense = Expense(
+                      category: selectedCategory,
+                      amount: double.parse(amountController.text.trim()),
+                      note: noteController.text.trim().isEmpty
+                          ? null
+                          : noteController.text.trim(),
+                      timestamp: DateTime.now().millisecondsSinceEpoch,
+                    );
+                    await _expenseService.addExpense(expense);
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      _loadData();
+                    }
+                  },
+                  child: const Text('Save Expense'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddExpenseSheet,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Expense'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: CustomScrollView(
@@ -146,8 +264,26 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _SummaryGrid(summary: _summary),
+                    const SizedBox(height: 10),
+                    _NetProfitCard(
+                      grossProfit: _summary.profit,
+                      totalExpenses: _totalExpenses,
+                    ),
                     const SizedBox(height: 20),
                     _InventoryValueCard(value: _inventoryValue),
+                    const SizedBox(height: 20),
+                    _SectionTitle(
+                      title: 'Expenses',
+                      subtitle: 'Total: ${formatPkr(_totalExpenses)}',
+                    ),
+                    const SizedBox(height: 12),
+                    _ExpensesList(
+                      expenses: _expenses,
+                      onDelete: (id) async {
+                        await _expenseService.deleteExpense(id);
+                        _loadData();
+                      },
+                    ),
                     const SizedBox(height: 20),
                     _SectionTitle(
                       title: 'Revenue & Profit',
@@ -224,7 +360,7 @@ class _SummaryGrid extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _MetricCard(
-                label: 'Profit',
+                label: 'Gross Profit',
                 value: formatPkr(summary.profit),
                 icon: Icons.trending_up,
                 color: AppColors.primary,
@@ -898,6 +1034,185 @@ class _EmptyTransactions extends StatelessWidget {
         'No transactions yet. Sales and restocks will appear here.',
         textAlign: TextAlign.center,
         style: TextStyle(color: AppColors.muted),
+      ),
+    );
+  }
+}
+
+class _NetProfitCard extends StatelessWidget {
+  final double grossProfit;
+  final double totalExpenses;
+
+  const _NetProfitCard({required this.grossProfit, required this.totalExpenses});
+
+  @override
+  Widget build(BuildContext context) {
+    final netProfit = grossProfit - totalExpenses;
+    final color = netProfit >= 0 ? AppColors.sell : AppColors.danger;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.account_balance_outlined, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Net Profit',
+                  style: TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Gross Profit − Expenses',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            formatPkr(netProfit),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpensesList extends StatelessWidget {
+  final List<Expense> expenses;
+  final void Function(int id) onDelete;
+
+  const _ExpensesList({required this.expenses, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    if (expenses.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: const Text(
+          'No expenses recorded for this period.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.muted),
+        ),
+      );
+    }
+
+    return Column(
+      children: expenses.map((e) => _ExpenseTile(expense: e, onDelete: onDelete)).toList(),
+    );
+  }
+}
+
+class _ExpenseTile extends StatelessWidget {
+  final Expense expense;
+  final void Function(int id) onDelete;
+
+  const _ExpenseTile({required this.expense, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final time = DateFormat('d MMM, h:mm a').format(
+      DateTime.fromMillisecondsSinceEpoch(expense.timestamp),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.danger.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.receipt_long_outlined, color: AppColors.danger, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        expense.category,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (expense.note != null && expense.note!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    expense.note!,
+                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  ),
+                ],
+                const SizedBox(height: 2),
+                Text(time, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatPkr(expense.amount),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.danger,
+                ),
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => onDelete(expense.id!),
+                child: Icon(Icons.delete_outline, size: 18, color: Colors.grey.shade400),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -6,8 +6,11 @@ import '../services/khata_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../services/cash_register_service.dart';
 import 'barcode_scanner_screen.dart';
 import 'cart_screen.dart';
+import 'cash_register_screen.dart';
+import 'create_bill_screen.dart';
 import 'finance_screen.dart';
 import 'inventory_screen.dart';
 import 'khata_screen.dart';
@@ -24,11 +27,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final _financeService = FinanceService();
   final _settingsService = SettingsService();
   final _khataService = KhataService();
+  final _cashRegisterService = CashRegisterService();
   double _todayRevenue = 0;
   double _todayProfit = 0;
   int _itemCount = 0;
   int _totalUnits = 0;
   double _totalOutstanding = 0;
+  bool _registerOpen = false;
 
   @override
   void initState() {
@@ -37,21 +42,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final results = await Future.wait([
-      _financeService.getTodaySummary(),
-      DatabaseHelper().getAllItems(),
-      _khataService.getTotalOutstanding(),
-    ]);
+    List<dynamic> results;
+    try {
+      results = await Future.wait([
+        _financeService.getTodaySummary(),
+        DatabaseHelper().getAllItems(),
+        _khataService.getTotalOutstanding(),
+        _cashRegisterService.getActiveSession(),
+      ]);
+    } catch (_) {
+      return;
+    }
     if (!mounted) return;
     final summary = results[0] as dynamic;
     final items = results[1] as List;
     final outstanding = results[2] as double;
+    final activeSession = results[3];
     setState(() {
       _todayRevenue = summary.revenue as double;
       _todayProfit = summary.profit as double;
       _itemCount = items.length;
       _totalUnits = items.fold(0, (sum, item) => sum + (item.quantity as int));
       _totalOutstanding = outstanding;
+      _registerOpen = activeSession != null;
     });
   }
 
@@ -106,6 +119,21 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (context) => const CartScreen()),
     );
     await _loadData();
+  }
+
+  Future<void> _navigateToCashRegister() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CashRegisterScreen()),
+    );
+    await _loadData();
+  }
+
+  Future<void> _navigateToCreateBill() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CreateBillScreen()),
+    );
   }
 
   @override
@@ -183,6 +211,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.account_balance_wallet_outlined,
                       color: AppColors.warning,
                       onTap: _navigateToKhata,
+                    ),
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'Cash Register',
+                      subtitle: _registerOpen
+                          ? 'Session open — tap to manage'
+                          : 'Register closed — tap to open',
+                      icon: Icons.point_of_sale_outlined,
+                      color: const Color(0xFF7C3AED),
+                      onTap: _navigateToCashRegister,
+                      badge: _registerOpen ? 'OPEN' : null,
+                      badgeColor: AppColors.sell,
+                    ),
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'Create Bill',
+                      subtitle: 'Build a bill and share on WhatsApp',
+                      icon: Icons.receipt_long_outlined,
+                      color: const Color(0xFF0891B2),
+                      onTap: _navigateToCreateBill,
                     ),
                     const SizedBox(height: 12),
                     _ActionCard(
@@ -525,6 +573,8 @@ class _ActionCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final String? badge;
+  final Color? badgeColor;
 
   const _ActionCard({
     required this.title,
@@ -532,6 +582,8 @@ class _ActionCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.badge,
+    this.badgeColor,
   });
 
   @override
@@ -563,12 +615,40 @@ class _ActionCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: (badgeColor ?? AppColors.sell)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badge!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: badgeColor ?? AppColors.sell,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(

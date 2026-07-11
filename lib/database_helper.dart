@@ -55,6 +55,8 @@ class DatabaseHelper {
     await _createTransactionsTable(db);
     await _createKhataTable(db);
     await _createSalesTable(db);
+    await _createExpensesTable(db);
+    await _createCashSessionsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -72,6 +74,8 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE transactions ADD COLUMN sale_id INTEGER REFERENCES sales(id)',
       );
+      await _createExpensesTable(db);
+      await _createCashSessionsTable(db);
     }
     if (oldVersion < 6) {
       await db.execute(
@@ -127,6 +131,33 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_khata_customer '
       'ON khata_entries(customer_id)',
+    );
+  }
+
+  Future<void> _createExpensesTable(Database db) async {
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS expenses ('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'category TEXT NOT NULL, '
+      'amount REAL NOT NULL, '
+      'note TEXT, '
+      'timestamp INTEGER NOT NULL'
+      ')',
+    );
+  }
+
+  Future<void> _createCashSessionsTable(Database db) async {
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS cash_sessions ('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'opening_cash REAL NOT NULL, '
+      'closing_cash REAL, '
+      'expected_cash REAL, '
+      'discrepancy REAL, '
+      'opened_at INTEGER NOT NULL, '
+      'closed_at INTEGER, '
+      'notes TEXT'
+      ')',
     );
   }
 

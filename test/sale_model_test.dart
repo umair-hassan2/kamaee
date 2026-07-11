@@ -12,7 +12,7 @@ void main() {
         khataAmount: 300,
         paymentMethod: PaymentMethod.partial,
         status: SaleStatus.completed,
-        timestamp: 1_700_000_000_000,
+        timestamp: 1700000000000,
       );
 
       final map = sale.toMap();
@@ -25,7 +25,7 @@ void main() {
       expect(restored.khataAmount, 300);
       expect(restored.paymentMethod, PaymentMethod.partial);
       expect(restored.status, SaleStatus.completed);
-      expect(restored.timestamp, 1_700_000_000_000);
+      expect(restored.timestamp, 1700000000000);
     });
 
     test('toMap omits id when null', () {

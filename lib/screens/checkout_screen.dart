@@ -424,7 +424,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${formatPkr(_khata)} will be added to ${_selectedCustomer?.name ?? "customer"}'s khata',
+                        "${formatPkr(_khata)} will be added to ${_selectedCustomer?.name ?? 'customer'}'s khata",
                         style: const TextStyle(
                           color: AppColors.warning,
                           fontWeight: FontWeight.w600,

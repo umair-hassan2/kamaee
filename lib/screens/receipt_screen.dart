@@ -9,8 +9,6 @@ class ReceiptScreen extends StatelessWidget {
   final List<SaleTransaction> items;
   final String? customerName;
 
-  final String? customerName;
-
   const ReceiptScreen({
     super.key,
     required this.sale,
