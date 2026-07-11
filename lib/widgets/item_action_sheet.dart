@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/item.dart';
 import '../screens/edit_item_screen.dart';
+import '../services/cart_service.dart';
 import '../services/inventory_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
@@ -14,12 +15,15 @@ class ItemActionSheet extends StatefulWidget {
   final Item item;
   final VoidCallback onDone;
   final VoidCallback onCancel;
+  /// When true, shows "Add to Cart" alongside "Sell" for multi-item sessions.
+  final bool showAddToCart;
 
   const ItemActionSheet({
     super.key,
     required this.item,
     required this.onDone,
     required this.onCancel,
+    this.showAddToCart = false,
   });
 
   @override
@@ -29,6 +33,7 @@ class ItemActionSheet extends StatefulWidget {
 class _ItemActionSheetState extends State<ItemActionSheet> {
   final _inventoryService = InventoryService();
   final _settingsService = SettingsService();
+  final _cartService = CartService();
   final _quantityController = TextEditingController(text: '1');
   ItemActionMode _mode = ItemActionMode.sell;
   int _quantity = 1;
@@ -89,7 +94,6 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
 
   Future<void> _submit() async {
     if (_isLoading) return;
-
     setState(() => _isLoading = true);
     try {
       if (_mode == ItemActionMode.sell) {
@@ -120,6 +124,32 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('StateError: ', '')),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _addToCart() async {
+    if (_isLoading || _mode != ItemActionMode.sell) return;
+    setState(() => _isLoading = true);
+    try {
+      await _cartService.addItem(item, _quantity);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added $_quantity × "${item.name}" to cart'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      widget.onDone();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -298,7 +328,7 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.danger.withValues(alpha:0.08),
+                color: AppColors.danger.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Row(
@@ -335,28 +365,61 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
             ],
           ),
           const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _isLoading || (_mode == ItemActionMode.sell && !_canSell)
-                ? null
-                : _submit,
-            style: FilledButton.styleFrom(
-              backgroundColor: _mode == ItemActionMode.sell
-                  ? AppColors.sell
-                  : AppColors.restock,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+
+          // Primary action row
+          if (widget.showAddToCart && _mode == ItemActionMode.sell && _canSell) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _isLoading ? null : _submit,
+                    icon: const Icon(Icons.bolt, size: 18),
+                    label: const Text('Quick Sell'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.sell,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                  )
-                : Text(_mode == ItemActionMode.sell
-                    ? 'Sell $_quantity'
-                    : 'Restock $_quantity'),
-          ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _isLoading ? null : _addToCart,
+                    icon: const Icon(Icons.add_shopping_cart, size: 18),
+                    label: const Text('Add to Cart'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            FilledButton(
+              onPressed:
+                  _isLoading || (_mode == ItemActionMode.sell && !_canSell)
+                      ? null
+                      : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: _mode == ItemActionMode.sell
+                    ? AppColors.sell
+                    : AppColors.restock,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(_mode == ItemActionMode.sell
+                      ? 'Sell $_quantity'
+                      : 'Restock $_quantity'),
+            ),
+          ],
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: _isLoading ? null : widget.onCancel,
@@ -385,7 +448,7 @@ class _StockBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha:0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -444,7 +507,7 @@ class _QtyButton extends StatelessWidget {
       onPressed: onPressed,
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        backgroundColor: AppColors.primary.withValues(alpha:0.1),
+        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
         foregroundColor: AppColors.primary,
       ),
     );
@@ -456,6 +519,7 @@ Future<void> showItemActionSheet({
   required Item item,
   required VoidCallback onDone,
   required VoidCallback onCancel,
+  bool showAddToCart = false,
 }) {
   return showModalBottomSheet(
     context: context,
@@ -468,6 +532,7 @@ Future<void> showItemActionSheet({
       item: item,
       onDone: onDone,
       onCancel: onCancel,
+      showAddToCart: showAddToCart,
     ),
   );
 }

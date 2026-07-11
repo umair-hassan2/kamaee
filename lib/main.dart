@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 import 'screens/home_screen.dart';
+import 'services/cart_service.dart';
 import 'services/finance_service.dart';
 import 'services/notification_service.dart';
 import 'services/settings_service.dart';
@@ -10,6 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SettingsService().load();
   await NotificationService().init();
+  await CartService().init(); // hydrate cart badge from any persisted draft
   _scheduleDailySummary(); // fire-and-forget
   runApp(const MyApp());
 }
