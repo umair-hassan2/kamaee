@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../database_helper.dart';
 import '../services/finance_service.dart';
+import '../services/khata_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import 'barcode_scanner_screen.dart';
 import 'finance_screen.dart';
 import 'inventory_screen.dart';
+import 'khata_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,10 +21,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _financeService = FinanceService();
   final _settingsService = SettingsService();
+  final _khataService = KhataService();
   double _todayRevenue = 0;
   double _todayProfit = 0;
   int _itemCount = 0;
   int _totalUnits = 0;
+  double _totalOutstanding = 0;
 
   @override
   void initState() {
@@ -31,14 +35,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final summary = await _financeService.getTodaySummary();
-    final items = await DatabaseHelper().getAllItems();
+    final results = await Future.wait([
+      _financeService.getTodaySummary(),
+      DatabaseHelper().getAllItems(),
+      _khataService.getTotalOutstanding(),
+    ]);
     if (!mounted) return;
+    final summary = results[0] as dynamic;
+    final items = results[1] as List;
+    final outstanding = results[2] as double;
     setState(() {
-      _todayRevenue = summary.revenue;
-      _todayProfit = summary.profit;
+      _todayRevenue = summary.revenue as double;
+      _todayProfit = summary.profit as double;
       _itemCount = items.length;
-      _totalUnits = items.fold(0, (sum, item) => sum + item.quantity);
+      _totalUnits = items.fold(0, (sum, item) => sum + (item.quantity as int));
+      _totalOutstanding = outstanding;
     });
   }
 
@@ -79,6 +90,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _navigateToKhata() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const KhataScreen()),
+    );
+    await _loadData();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       profit: _todayProfit,
                       itemCount: _itemCount,
                       totalUnits: _totalUnits,
+                      totalOutstanding: _totalOutstanding,
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -145,6 +165,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.insights_outlined,
                       color: AppColors.sell,
                       onTap: _navigateToFinance,
+                    ),
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      title: 'Khata / Udhaar',
+                      subtitle: 'Track customer credit and payments',
+                      icon: Icons.account_balance_wallet_outlined,
+                      color: AppColors.warning,
+                      onTap: _navigateToKhata,
                     ),
                     const SizedBox(height: 12),
                     _ActionCard(
@@ -265,12 +293,14 @@ class _TodaySummaryCard extends StatelessWidget {
   final double profit;
   final int itemCount;
   final int totalUnits;
+  final double totalOutstanding;
 
   const _TodaySummaryCard({
     required this.revenue,
     required this.profit,
     required this.itemCount,
     required this.totalUnits,
+    required this.totalOutstanding,
   });
 
   @override
@@ -327,7 +357,55 @@ class _TodaySummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: totalOutstanding > 0
+                    ? AppColors.warning.withValues(alpha: 0.08)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: totalOutstanding > 0
+                    ? Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.25),
+                      )
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 16,
+                    color: totalOutstanding > 0
+                        ? AppColors.warning
+                        : AppColors.muted,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Udhaar Outstanding',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: totalOutstanding > 0
+                            ? AppColors.warning
+                            : AppColors.muted,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatPkr(totalOutstanding),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: totalOutstanding > 0
+                          ? AppColors.warning
+                          : AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(

@@ -1,6 +1,9 @@
+import 'dart:async';
 import '../database_helper.dart';
 import '../models/item.dart';
 import 'finance_service.dart';
+import 'notification_service.dart';
+import 'settings_service.dart';
 
 class InventoryService {
   final DatabaseHelper _db = DatabaseHelper();
@@ -17,6 +20,13 @@ class InventoryService {
     final updated = item.copyWith(quantity: item.quantity - quantity);
     await _db.updateItem(updated);
     await _finance.logSell(item, quantity);
+
+    final threshold = SettingsService().lowStockThreshold;
+    if (updated.quantity <= threshold) {
+      unawaited(
+        NotificationService().showLowStockAlert(item.name, updated.quantity),
+      );
+    }
 
     return updated;
   }

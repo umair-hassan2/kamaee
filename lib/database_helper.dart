@@ -33,7 +33,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -52,6 +52,7 @@ class DatabaseHelper {
       ')',
     );
     await _createTransactionsTable(db);
+    await _createKhataTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -61,6 +62,35 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE items ADD COLUMN photo_path TEXT');
     }
+    if (oldVersion < 4) {
+      await _createKhataTable(db);
+    }
+  }
+
+  Future<void> _createKhataTable(Database db) async {
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS customers ('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'name TEXT NOT NULL, '
+      'phone TEXT, '
+      'created_at INTEGER NOT NULL'
+      ')',
+    );
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS khata_entries ('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'customer_id INTEGER NOT NULL, '
+      'type TEXT NOT NULL, '
+      'amount REAL NOT NULL, '
+      'note TEXT, '
+      'timestamp INTEGER NOT NULL, '
+      'FOREIGN KEY (customer_id) REFERENCES customers(id)'
+      ')',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_khata_customer '
+      'ON khata_entries(customer_id)',
+    );
   }
 
   Future<void> _createTransactionsTable(Database db) async {

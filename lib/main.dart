@@ -1,12 +1,33 @@
 import 'package:flutter/material.dart';
+import 'database_helper.dart';
 import 'screens/home_screen.dart';
+import 'services/finance_service.dart';
+import 'services/notification_service.dart';
 import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SettingsService().load();
+  await NotificationService().init();
+  _scheduleDailySummary(); // fire-and-forget
   runApp(const MyApp());
+}
+
+Future<void> _scheduleDailySummary() async {
+  try {
+    final finance = FinanceService();
+    final summary = await finance.getTodaySummary();
+    final items = await DatabaseHelper().getAllItems();
+    final threshold = SettingsService().lowStockThreshold;
+    final lowCount =
+        items.where((i) => i.quantity > 0 && i.quantity <= threshold).length;
+    await NotificationService().scheduleDailySummary(
+      revenue: summary.revenue,
+      profit: summary.profit,
+      lowStockCount: lowCount,
+    );
+  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {

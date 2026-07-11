@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/finance_models.dart';
 import '../models/transaction.dart';
+import '../services/export_service.dart';
 import '../services/finance_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
@@ -24,6 +25,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   List<SaleTransaction> _transactions = [];
   double _inventoryValue = 0;
   bool _isLoading = true;
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -57,6 +59,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
     _loadData();
   }
 
+  String get _periodExportLabel {
+    switch (_period) {
+      case FinancePeriod.today:
+        return 'Today';
+      case FinancePeriod.week:
+        return 'This Week';
+      case FinancePeriod.month:
+        return 'This Month';
+    }
+  }
+
+  Future<void> _exportData() async {
+    if (_isExporting) return;
+    setState(() => _isExporting = true);
+    try {
+      await ExportService().exportTransactions(_transactions, _periodExportLabel);
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,11 +87,31 @@ class _FinanceScreenState extends State<FinanceScreen> {
         onRefresh: _loadData,
         child: CustomScrollView(
           slivers: [
-            const SliverAppBar(
+            SliverAppBar(
               pinned: true,
-              title: Text('Cash Flow'),
+              title: const Text('Cash Flow'),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
+              actions: [
+                if (_isExporting)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined),
+                    tooltip: 'Export CSV',
+                    onPressed: _exportData,
+                  ),
+              ],
             ),
             SliverToBoxAdapter(
               child: Padding(
