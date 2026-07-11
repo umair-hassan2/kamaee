@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'models/item.dart';
+import 'models/sale.dart';
 import 'models/transaction.dart';
 
 class DatabaseHelper {
@@ -33,7 +34,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -53,6 +54,7 @@ class DatabaseHelper {
     );
     await _createTransactionsTable(db);
     await _createKhataTable(db);
+    await _createSalesTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -65,6 +67,34 @@ class DatabaseHelper {
     if (oldVersion < 4) {
       await _createKhataTable(db);
     }
+    if (oldVersion < 5) {
+      await _createSalesTable(db);
+      await db.execute(
+        'ALTER TABLE transactions ADD COLUMN sale_id INTEGER REFERENCES sales(id)',
+      );
+    }
+  }
+
+  Future<void> _createSalesTable(Database db) async {
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS sales ('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'customer_id INTEGER, '
+      'total_amount REAL NOT NULL DEFAULT 0, '
+      'paid_amount REAL NOT NULL DEFAULT 0, '
+      'khata_amount REAL NOT NULL DEFAULT 0, '
+      'payment_method TEXT NOT NULL DEFAULT "cash", '
+      'status TEXT NOT NULL DEFAULT "draft", '
+      'timestamp INTEGER NOT NULL, '
+      'FOREIGN KEY (customer_id) REFERENCES customers(id)'
+      ')',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sales_timestamp ON sales(timestamp)',
+    );
   }
 
   Future<void> _createKhataTable(Database db) async {
@@ -107,7 +137,9 @@ class DatabaseHelper {
       'cost REAL NOT NULL, '
       'profit REAL NOT NULL, '
       'timestamp INTEGER NOT NULL, '
-      'FOREIGN KEY (item_id) REFERENCES items(id)'
+      'sale_id INTEGER, '
+      'FOREIGN KEY (item_id) REFERENCES items(id), '
+      'FOREIGN KEY (sale_id) REFERENCES sales(id)'
       ')',
     );
     await db.execute(
@@ -118,7 +150,13 @@ class DatabaseHelper {
       'CREATE INDEX IF NOT EXISTS idx_transactions_item_id '
       'ON transactions(item_id)',
     );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_sale_id '
+      'ON transactions(sale_id)',
+    );
   }
+
+  // ─── Items ───────────────────────────────────────────────────────────────────
 
   Future<Item?> getItemByBarcode(String barcode) async {
     final db = await database;
@@ -163,6 +201,8 @@ class DatabaseHelper {
     final maps = await db.query('items', orderBy: 'name COLLATE NOCASE ASC');
     return maps.map((m) => Item.fromMap(m)).toList();
   }
+
+  // ─── Transactions ─────────────────────────────────────────────────────────────
 
   Future<int> insertTransaction(SaleTransaction transaction) async {
     final db = await database;
@@ -274,5 +314,64 @@ class DatabaseHelper {
         limit,
       ],
     );
+  }
+
+  // ─── Sales ────────────────────────────────────────────────────────────────────
+
+  Future<int> insertSale(Sale sale) async {
+    final db = await database;
+    return db.insert('sales', sale.toMap());
+  }
+
+  Future<void> updateSale(Sale sale) async {
+    final db = await database;
+    await db.update('sales', sale.toMap(), where: 'id = ?', whereArgs: [sale.id]);
+  }
+
+  Future<Sale?> getDraftSale() async {
+    final db = await database;
+    final rows = await db.query(
+      'sales',
+      where: 'status = ?',
+      whereArgs: [SaleStatus.draft.name],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return Sale.fromMap(rows.first);
+  }
+
+  Future<List<SaleTransaction>> getTransactionsForSale(int saleId) async {
+    final db = await database;
+    final maps = await db.query(
+      'transactions',
+      where: 'sale_id = ?',
+      whereArgs: [saleId],
+    );
+    return maps.map((m) => SaleTransaction.fromMap(m)).toList();
+  }
+
+  Future<void> deleteTransactionsForSale(int saleId) async {
+    final db = await database;
+    await db.delete('transactions', where: 'sale_id = ?', whereArgs: [saleId]);
+  }
+
+  Future<void> deleteSale(int id) async {
+    final db = await database;
+    await db.delete('sales', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Sale>> getCompletedSalesBetween(DateTime start, DateTime end) async {
+    final db = await database;
+    final rows = await db.query(
+      'sales',
+      where: 'status = ? AND timestamp >= ? AND timestamp < ?',
+      whereArgs: [
+        SaleStatus.completed.name,
+        start.millisecondsSinceEpoch,
+        end.millisecondsSinceEpoch,
+      ],
+      orderBy: 'timestamp DESC',
+    );
+    return rows.map((r) => Sale.fromMap(r)).toList();
   }
 }

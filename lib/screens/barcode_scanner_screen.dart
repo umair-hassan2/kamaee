@@ -5,10 +5,12 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:permission_handler/permission_handler.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
+import '../services/cart_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/camera_image_utils.dart';
 import '../widgets/item_action_sheet.dart';
 import 'add_item_screen.dart';
+import 'cart_screen.dart';
 
 enum ScanMode { barcode, qr }
 
@@ -174,6 +176,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     await showItemActionSheet(
       context: context,
       item: item,
+      showAddToCart: true,
       onDone: () {
         Navigator.pop(context);
         _showAfterActionPrompt();
@@ -187,6 +190,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
   Future<void> _showAfterActionPrompt() async {
     if (!mounted) return;
+
+    final cartCount = CartService().cartCount.value;
 
     await showModalBottomSheet(
       context: context,
@@ -237,6 +242,24 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 icon: Icon(_isQrMode ? Icons.qr_code_2 : Icons.barcode_reader),
                 label: const Text('Scan Next Item'),
               ),
+              if (cartCount > 0) ...[
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CartScreen()),
+                    );
+                    if (mounted) Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.shopping_cart_outlined),
+                  label: Text('View Cart ($cartCount items)'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: () {
@@ -284,6 +307,51 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         title: Text(_isQrMode ? 'Scan QR Code' : 'Scan Barcode'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        actions: [
+          ValueListenableBuilder<int>(
+            valueListenable: CartService().cartCount,
+            builder: (_, count, __) {
+              if (count == 0) return const SizedBox.shrink();
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart_outlined),
+                    onPressed: () async {
+                      if (_cameraController?.value.isStreamingImages ?? false) {
+                        await _cameraController!.stopImageStream();
+                      }
+                      if (!mounted) return;
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartScreen()),
+                      );
+                      if (mounted) Navigator.pop(context);
+                    },
+                  ),
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.sell,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: Colors.black,
       body: _buildBody(),

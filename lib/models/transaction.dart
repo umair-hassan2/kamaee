@@ -12,6 +12,7 @@ class SaleTransaction {
   final double cost;
   final double profit;
   final DateTime timestamp;
+  final int? saleId;
 
   const SaleTransaction({
     this.id,
@@ -25,6 +26,7 @@ class SaleTransaction {
     required this.cost,
     required this.profit,
     required this.timestamp,
+    this.saleId,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,6 +42,7 @@ class SaleTransaction {
       'cost': cost,
       'profit': profit,
       'timestamp': timestamp.millisecondsSinceEpoch,
+      if (saleId != null) 'sale_id': saleId,
     };
   }
 
@@ -56,6 +59,7 @@ class SaleTransaction {
       cost: (map['cost'] as num).toDouble(),
       profit: (map['profit'] as num).toDouble(),
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
+      saleId: map['sale_id'] as int?,
     );
   }
 }

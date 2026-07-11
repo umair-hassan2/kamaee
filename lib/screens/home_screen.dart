@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../database_helper.dart';
+import '../services/cart_service.dart';
 import '../services/finance_service.dart';
 import '../services/khata_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import 'barcode_scanner_screen.dart';
+import 'cart_screen.dart';
 import 'finance_screen.dart';
 import 'inventory_screen.dart';
 import 'khata_screen.dart';
@@ -98,6 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadData();
   }
 
+  Future<void> _navigateToCart() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CartScreen()),
+    );
+    await _loadData();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -137,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 14),
                     _ActionCard(
                       title: 'Scan Barcode',
-                      subtitle: 'Sell or restock with product barcodes',
+                      subtitle: 'Sell, restock, or add to cart',
                       icon: Icons.barcode_reader,
                       color: AppColors.primary,
                       onTap: () => _navigateToScanner(ScanMode.barcode),
@@ -145,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 12),
                     _ActionCard(
                       title: 'Scan QR Code',
-                      subtitle: 'Sell or restock with QR codes',
+                      subtitle: 'Sell, restock, or add to cart',
                       icon: Icons.qr_code_2,
                       color: AppColors.accent,
                       onTap: () => _navigateToScanner(ScanMode.qr),
@@ -188,6 +198,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: ValueListenableBuilder<int>(
+        valueListenable: CartService().cartCount,
+        builder: (_, count, __) {
+          if (count == 0) return const SizedBox.shrink();
+          return FloatingActionButton.extended(
+            onPressed: _navigateToCart,
+            backgroundColor: AppColors.sell,
+            icon: const Icon(Icons.shopping_cart_outlined),
+            label: Text(
+              'Cart · $count item${count == 1 ? '' : 's'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          );
+        },
       ),
     );
   }
