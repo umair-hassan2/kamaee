@@ -34,7 +34,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -71,6 +71,11 @@ class DatabaseHelper {
       await _createSalesTable(db);
       await db.execute(
         'ALTER TABLE transactions ADD COLUMN sale_id INTEGER REFERENCES sales(id)',
+      );
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE khata_entries ADD COLUMN sale_id INTEGER REFERENCES sales(id)',
       );
     }
   }
@@ -114,7 +119,9 @@ class DatabaseHelper {
       'amount REAL NOT NULL, '
       'note TEXT, '
       'timestamp INTEGER NOT NULL, '
-      'FOREIGN KEY (customer_id) REFERENCES customers(id)'
+      'sale_id INTEGER, '
+      'FOREIGN KEY (customer_id) REFERENCES customers(id), '
+      'FOREIGN KEY (sale_id) REFERENCES sales(id)'
       ')',
     );
     await db.execute(
@@ -359,6 +366,18 @@ class DatabaseHelper {
     final db = await database;
     await db.delete('sales', where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<List<Sale>> getSalesByCustomer(int customerId) async {
+    final db = await database;
+    final rows = await db.query(
+      'sales',
+      where: 'customer_id = ? AND status = ?',
+      whereArgs: [customerId, SaleStatus.completed.name],
+      orderBy: 'timestamp DESC',
+    );
+    return rows.map((r) => Sale.fromMap(r)).toList();
+  }
+
 
   Future<List<Sale>> getCompletedSalesBetween(DateTime start, DateTime end) async {
     final db = await database;

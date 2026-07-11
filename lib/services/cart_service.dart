@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../database_helper.dart';
+import '../models/khata_entry.dart';
+import '../services/khata_service.dart';
 import '../models/item.dart';
 import '../models/sale.dart';
 import '../models/transaction.dart';
@@ -193,15 +195,30 @@ class CartService {
 
     final total = draft.totalAmount;
     final khata = total - paidAmount;
+    final khataAmount = khata < 0 ? 0.0 : khata;
     final completed = draft.copyWith(
       customerId: customerId,
       paidAmount: paidAmount,
-      khataAmount: khata < 0 ? 0 : khata,
+      khataAmount: khataAmount,
       paymentMethod: paymentMethod,
       status: SaleStatus.completed,
       timestamp: now.millisecondsSinceEpoch,
     );
     await _db.updateSale(completed);
+
+    // Auto-create KhataEntry if credit is involved
+    if (khataAmount > 0 && customerId != null) {
+      final khataService = KhataService();
+      await khataService.addEntry(KhataEntry(
+        customerId: customerId,
+        type: KhataEntryType.credit,
+        amount: khataAmount,
+        note: 'Sale #${completed.id}',
+        timestamp: now.millisecondsSinceEpoch,
+        saleId: completed.id,
+      ));
+    }
+
     cartCount.value = 0;
     return completed;
   }

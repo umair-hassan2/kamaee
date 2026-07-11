@@ -7,11 +7,15 @@ import '../utils/currency_formatter.dart';
 class ReceiptScreen extends StatelessWidget {
   final Sale sale;
   final List<SaleTransaction> items;
+  final String? customerName;
+
+  final String? customerName;
 
   const ReceiptScreen({
     super.key,
     required this.sale,
     required this.items,
+    this.customerName,
   });
 
   String get _paymentLabel {
@@ -69,6 +73,17 @@ class ReceiptScreen extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 6),
+                  if (customerName != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        customerName!,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
                   Text(
                     '${_timeString(saleTime)} · ${_paymentLabel}',
                     style: const TextStyle(color: AppColors.muted, fontSize: 14),

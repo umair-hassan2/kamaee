@@ -7,6 +7,7 @@ class KhataEntry {
   final double amount;
   final String? note;
   final int timestamp;
+  final int? saleId; // non-null when auto-created from a Sale
 
   const KhataEntry({
     this.id,
@@ -15,6 +16,7 @@ class KhataEntry {
     required this.amount,
     this.note,
     required this.timestamp,
+    this.saleId,
   });
 
   Map<String, dynamic> toMap() => {
@@ -24,6 +26,7 @@ class KhataEntry {
     'amount': amount,
     'note': note,
     'timestamp': timestamp,
+    if (saleId != null) 'sale_id': saleId,
   };
 
   factory KhataEntry.fromMap(Map<String, dynamic> map) => KhataEntry(
@@ -33,5 +36,6 @@ class KhataEntry {
     amount: (map['amount'] as num).toDouble(),
     note: map['note'] as String?,
     timestamp: map['timestamp'] as int,
+    saleId: map['sale_id'] as int?,
   );
 }
