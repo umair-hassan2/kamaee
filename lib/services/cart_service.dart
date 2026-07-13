@@ -209,11 +209,15 @@ class CartService {
     // Auto-create KhataEntry if credit is involved
     if (khataAmount > 0 && customerId != null) {
       final khataService = KhataService();
+      final itemSummary = lines.map((l) => '${l.itemName} (${l.quantity})').join(', ');
+      final note = '$itemSummary — Total: Rs.${total.toStringAsFixed(0)}, '
+          'Paid: Rs.${paidAmount.toStringAsFixed(0)}, '
+          'Khata: Rs.${khataAmount.toStringAsFixed(0)}';
       await khataService.addEntry(KhataEntry(
         customerId: customerId,
         type: KhataEntryType.credit,
         amount: khataAmount,
-        note: 'Sale #${completed.id}',
+        note: note,
         timestamp: now.millisecondsSinceEpoch,
         saleId: completed.id,
       ));

@@ -1,10 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/sale.dart';
 import '../models/transaction.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/receipt_pdf_generator.dart';
+import '../services/settings_service.dart';
 
-class ReceiptScreen extends StatelessWidget {
+class ReceiptScreen extends StatefulWidget {
   final Sale sale;
   final List<SaleTransaction> items;
   final String? customerName;
@@ -16,30 +21,82 @@ class ReceiptScreen extends StatelessWidget {
     this.customerName,
   });
 
+  @override
+  State<ReceiptScreen> createState() => _ReceiptScreenState();
+}
+
+class _ReceiptScreenState extends State<ReceiptScreen> {
+  bool _sharing = false;
+
   String get _paymentLabel {
-    return switch (sale.paymentMethod) {
+    return switch (widget.sale.paymentMethod) {
       PaymentMethod.cash => 'Cash',
       PaymentMethod.khata => 'Khata (Udhaar)',
       PaymentMethod.partial => 'Partial Payment',
     };
   }
 
+  Future<void> _shareOnWhatsApp() async {
+    setState(() => _sharing = true);
+    try {
+      final shopName = SettingsService().settings.shopName;
+      final pdfBytes = await ReceiptPdfGenerator.generate(
+        sale: widget.sale,
+        items: widget.items,
+        customerName: widget.customerName,
+        shopName: shopName.isNotEmpty ? shopName : 'Kamaae',
+      );
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/receipt_${widget.sale.id}.pdf');
+      await file.writeAsBytes(pdfBytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        text: widget.customerName != null
+            ? 'Bill for ${widget.customerName}'
+            : 'Your bill',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not share: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final saleTime = DateTime.fromMillisecondsSinceEpoch(sale.timestamp);
+    final saleTime = DateTime.fromMillisecondsSinceEpoch(widget.sale.timestamp);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Receipt'),
         automaticallyImplyLeading: false,
         actions: [
+          if (_sharing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              onPressed: _shareOnWhatsApp,
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Share via WhatsApp',
+            ),
           TextButton(
             onPressed: () {
-              // Pop back to root (home) — pop twice since CheckoutScreen
-              // was replaced, so we only need to pop CartScreen too
-              Navigator.of(context)
-                ..pop(true)  // CartScreen sees true → pops itself
-                ;
+              Navigator.of(context).pop(true);
             },
             child: const Text('Done'),
           ),
@@ -71,11 +128,11 @@ class ReceiptScreen extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 6),
-                  if (customerName != null)
+                  if (widget.customerName != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                        customerName!,
+                        widget.customerName!,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
@@ -83,7 +140,7 @@ class ReceiptScreen extends StatelessWidget {
                       ),
                     ),
                   Text(
-                    '${_timeString(saleTime)} · ${_paymentLabel}',
+                    '${_timeString(saleTime)} · $_paymentLabel',
                     style: const TextStyle(color: AppColors.muted, fontSize: 14),
                   ),
                 ],
@@ -110,7 +167,7 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ...items.map(
+                  ...widget.items.map(
                     (line) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Row(
@@ -145,22 +202,23 @@ class ReceiptScreen extends StatelessWidget {
                   const Divider(height: 24),
                   _ReceiptRow(
                     label: 'Total',
-                    value: formatPkr(sale.totalAmount),
+                    value: formatPkr(widget.sale.totalAmount),
                     bold: true,
                   ),
-                  if (sale.paidAmount > 0 && sale.paymentMethod != PaymentMethod.cash) ...[
+                  if (widget.sale.paidAmount > 0 &&
+                      widget.sale.paymentMethod != PaymentMethod.cash) ...[
                     const SizedBox(height: 6),
                     _ReceiptRow(
                       label: 'Paid now',
-                      value: formatPkr(sale.paidAmount),
+                      value: formatPkr(widget.sale.paidAmount),
                       color: AppColors.sell,
                     ),
                   ],
-                  if (sale.khataAmount > 0) ...[
+                  if (widget.sale.khataAmount > 0) ...[
                     const SizedBox(height: 6),
                     _ReceiptRow(
                       label: 'On Khata',
-                      value: formatPkr(sale.khataAmount),
+                      value: formatPkr(widget.sale.khataAmount),
                       color: AppColors.warning,
                     ),
                   ],
@@ -194,9 +252,27 @@ class ReceiptScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
 
-            // Action buttons
+            // Share button
+            OutlinedButton.icon(
+              onPressed: _sharing ? null : _shareOnWhatsApp,
+              icon: _sharing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.share_outlined),
+              label: const Text('Share Bill via WhatsApp'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
             FilledButton.icon(
               onPressed: () => Navigator.of(context).pop(true),
               icon: const Icon(Icons.home_outlined),
@@ -211,13 +287,13 @@ class ReceiptScreen extends StatelessWidget {
     );
   }
 
-  Color get _methodColor => switch (sale.paymentMethod) {
+  Color get _methodColor => switch (widget.sale.paymentMethod) {
         PaymentMethod.cash => AppColors.sell,
         PaymentMethod.khata => AppColors.warning,
         PaymentMethod.partial => AppColors.accent,
       };
 
-  IconData get _methodIcon => switch (sale.paymentMethod) {
+  IconData get _methodIcon => switch (widget.sale.paymentMethod) {
         PaymentMethod.cash => Icons.payments_outlined,
         PaymentMethod.khata => Icons.account_balance_wallet_outlined,
         PaymentMethod.partial => Icons.call_split_outlined,

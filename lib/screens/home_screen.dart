@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../database_helper.dart';
-import '../services/cart_service.dart';
 import '../services/finance_service.dart';
 import '../services/khata_service.dart';
 import '../services/settings_service.dart';
+import '../services/cash_register_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
-import '../services/cash_register_service.dart';
 import 'barcode_scanner_screen.dart';
-import 'cart_screen.dart';
 import 'cash_register_screen.dart';
-import 'create_bill_screen.dart';
-import 'finance_screen.dart';
-import 'inventory_screen.dart';
-import 'khata_screen.dart';
+import 'sales_history_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -28,12 +25,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final _settingsService = SettingsService();
   final _khataService = KhataService();
   final _cashRegisterService = CashRegisterService();
+
   double _todayRevenue = 0;
   double _todayProfit = 0;
   int _itemCount = 0;
-  int _totalUnits = 0;
   double _totalOutstanding = 0;
   bool _registerOpen = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -42,81 +40,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    List<dynamic> results;
+    if (mounted) setState(() => _isLoading = true);
     try {
-      results = await Future.wait([
+      final results = await Future.wait([
         _financeService.getTodaySummary(),
         DatabaseHelper().getAllItems(),
         _khataService.getTotalOutstanding(),
         _cashRegisterService.getActiveSession(),
       ]);
+      if (!mounted) return;
+      final summary = results[0] as dynamic;
+      final items = results[1] as List;
+      setState(() {
+        _todayRevenue = summary.revenue as double;
+        _todayProfit = summary.profit as double;
+        _itemCount = items.length;
+        _totalOutstanding = results[2] as double;
+        _registerOpen = results[3] != null;
+        _isLoading = false;
+      });
     } catch (_) {
-      return;
+      if (mounted) setState(() => _isLoading = false);
     }
-    if (!mounted) return;
-    final summary = results[0] as dynamic;
-    final items = results[1] as List;
-    final outstanding = results[2] as double;
-    final activeSession = results[3];
-    setState(() {
-      _todayRevenue = summary.revenue as double;
-      _todayProfit = summary.profit as double;
-      _itemCount = items.length;
-      _totalUnits = items.fold(0, (sum, item) => sum + (item.quantity as int));
-      _totalOutstanding = outstanding;
-      _registerOpen = activeSession != null;
-    });
   }
 
   Future<void> _navigateToScanner(ScanMode mode) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => BarcodeScannerScreen(mode: mode),
-      ),
-    );
-    await _loadData();
-  }
-
-  Future<void> _navigateToInventory() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const InventoryScreen()),
-    );
-    await _loadData();
-  }
-
-  Future<void> _navigateToFinance() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const FinanceScreen()),
-    );
-    await _loadData();
-  }
-
-  Future<void> _navigateToSettings() async {
-    final updated = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    );
-    if (updated == true) {
-      await _loadData();
-      if (mounted) setState(() {});
-    }
-  }
-
-  Future<void> _navigateToKhata() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const KhataScreen()),
-    );
-    await _loadData();
-  }
-
-  Future<void> _navigateToCart() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CartScreen()),
+      MaterialPageRoute(builder: (_) => BarcodeScannerScreen(mode: mode)),
     );
     await _loadData();
   }
@@ -124,235 +75,184 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _navigateToCashRegister() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CashRegisterScreen()),
+      MaterialPageRoute(builder: (_) => const CashRegisterScreen()),
     );
     await _loadData();
   }
 
-  Future<void> _navigateToCreateBill() async {
+  Future<void> _navigateToSalesHistory() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CreateBillScreen()),
+      MaterialPageRoute(builder: (_) => const SalesHistoryScreen()),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _HomeHeader(
-                shopName: _settingsService.settings.shopName,
-                ownerName: _settingsService.settings.ownerName,
-                onSettingsTap: _navigateToSettings,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _TodaySummaryCard(
-                      revenue: _todayRevenue,
-                      profit: _todayProfit,
-                      itemCount: _itemCount,
-                      totalUnits: _totalUnits,
-                      totalOutstanding: _totalOutstanding,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Quick Actions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _ActionCard(
-                      title: 'Scan Barcode',
-                      subtitle: 'Sell, restock, or add to cart',
-                      icon: Icons.barcode_reader,
-                      color: AppColors.primary,
-                      onTap: () => _navigateToScanner(ScanMode.barcode),
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'Scan QR Code',
-                      subtitle: 'Sell, restock, or add to cart',
-                      icon: Icons.qr_code_2,
-                      color: AppColors.accent,
-                      onTap: () => _navigateToScanner(ScanMode.qr),
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'View Inventory',
-                      subtitle: 'Browse, search, and manage stock',
-                      icon: Icons.inventory_2_outlined,
-                      color: AppColors.restock,
-                      onTap: _navigateToInventory,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'Cash Flow',
-                      subtitle: 'Charts, history, and cost analysis',
-                      icon: Icons.insights_outlined,
-                      color: AppColors.sell,
-                      onTap: _navigateToFinance,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'Khata / Udhaar',
-                      subtitle: 'Track customer credit and payments',
-                      icon: Icons.account_balance_wallet_outlined,
-                      color: AppColors.warning,
-                      onTap: _navigateToKhata,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'Cash Register',
-                      subtitle: _registerOpen
-                          ? 'Session open — tap to manage'
-                          : 'Register closed — tap to open',
-                      icon: Icons.point_of_sale_outlined,
-                      color: const Color(0xFF7C3AED),
-                      onTap: _navigateToCashRegister,
-                      badge: _registerOpen ? 'OPEN' : null,
-                      badgeColor: AppColors.sell,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'Create Bill',
-                      subtitle: 'Build a bill and share on WhatsApp',
-                      icon: Icons.receipt_long_outlined,
-                      color: const Color(0xFF0891B2),
-                      onTap: _navigateToCreateBill,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionCard(
-                      title: 'Settings',
-                      subtitle: 'Shop profile, currency, stock alerts',
-                      icon: Icons.settings_outlined,
-                      color: AppColors.muted,
-                      onTap: _navigateToSettings,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: ValueListenableBuilder<int>(
-        valueListenable: CartService().cartCount,
-        builder: (_, count, __) {
-          if (count == 0) return const SizedBox.shrink();
-          return FloatingActionButton.extended(
-            onPressed: _navigateToCart,
-            backgroundColor: AppColors.sell,
-            icon: const Icon(Icons.shopping_cart_outlined),
-            label: Text(
-              'Cart · $count item${count == 1 ? '' : 's'}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          );
-        },
-      ),
+  Future<void> _navigateToSettings() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
-  }
-}
-
-class _HomeHeader extends StatelessWidget {
-  final String shopName;
-  final String ownerName;
-  final VoidCallback onSettingsTap;
-
-  const _HomeHeader({
-    required this.shopName,
-    required this.ownerName,
-    required this.onSettingsTap,
-  });
-
-  String get _title => shopName.isNotEmpty ? shopName : 'Kamaae';
-
-  String get _subtitle {
-    if (ownerName.isNotEmpty) return ownerName;
-    return 'Inventory & sales';
+    if (updated == true) await _loadData();
   }
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final shopName = _settingsService.settings.shopName;
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primaryDark],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'assets/images/kamaae_splash_logo.png',
-                fit: BoxFit.cover,
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: AppColors.primary,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _Header(
+                topPadding: topPadding,
+                shopName: shopName.isNotEmpty ? shopName : 'Kamaae',
+                onSettingsTap: _navigateToSettings,
               ),
             ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _StatsRow(
+                    revenue: _todayRevenue,
+                    profit: _todayProfit,
+                    isLoading: _isLoading,
+                  ),
+                  if (_totalOutstanding > 0) ...[
+                    const SizedBox(height: 12),
+                    _OutstandingStrip(amount: _totalOutstanding),
+                  ],
+                  const SizedBox(height: 28),
+                  Text(
+                    'QUICK ACTIONS',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.muted,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ActionGrid(
+                    items: [
+                      _ActionItem(
+                        icon: Symbols.barcode_scanner,
+                        label: 'Scan Barcode',
+                        subtitle: 'Sell or restock',
+                        color: AppColors.primary,
+                        onTap: () => _navigateToScanner(ScanMode.barcode),
+                      ),
+                      _ActionItem(
+                        icon: Symbols.qr_code_scanner,
+                        label: 'Scan QR',
+                        subtitle: 'Sell or restock',
+                        color: AppColors.accent,
+                        onTap: () => _navigateToScanner(ScanMode.qr),
+                      ),
+                      _ActionItem(
+                        icon: Symbols.point_of_sale,
+                        label: 'Cash Register',
+                        subtitle: _registerOpen ? 'Session open' : 'Tap to open',
+                        color: AppColors.sell,
+                        badge: _registerOpen ? 'OPEN' : null,
+                        onTap: _navigateToCashRegister,
+                      ),
+                      _ActionItem(
+                        icon: Symbols.receipt_long,
+                        label: 'Sales History',
+                        subtitle: 'Past bills & sales',
+                        color: AppColors.warning,
+                        onTap: _navigateToSalesHistory,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  _InventorySummary(itemCount: _itemCount),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final double topPadding;
+  final String shopName;
+  final VoidCallback onSettingsTap;
+
+  const _Header({
+    required this.topPadding,
+    required this.shopName,
+    required this.onSettingsTap,
+  });
+
+  String _dateLabel() {
+    final now = DateTime.now();
+    const weekdays = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+      'Friday', 'Saturday', 'Sunday',
+    ];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.fromLTRB(20, topPadding + 14, 8, 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(Symbols.storefront,
+                color: AppColors.primary, size: 22),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
+                  shopName,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                    height: 1.1,
+                    color: AppColors.neutralDark,
+                    height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  _subtitle,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  _dateLabel(),
+                  style: GoogleFonts.inter(
+                      fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: onSettingsTap,
-            icon: const Icon(Icons.settings_outlined, color: Colors.white),
+            icon: const Icon(Symbols.settings,
+                size: 22, color: AppColors.muted),
             tooltip: 'Settings',
           ),
         ],
@@ -361,178 +261,159 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-class _TodaySummaryCard extends StatelessWidget {
+// ── Stats Row ─────────────────────────────────────────────────────────────────
+
+class _StatsRow extends StatelessWidget {
   final double revenue;
   final double profit;
-  final int itemCount;
-  final int totalUnits;
-  final double totalOutstanding;
+  final bool isLoading;
 
-  const _TodaySummaryCard({
+  const _StatsRow({
     required this.revenue,
     required this.profit,
-    required this.itemCount,
-    required this.totalUnits,
-    required this.totalOutstanding,
+    required this.isLoading,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Transform.translate(
-      offset: const Offset(0, -12),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            label: 'Revenue',
+            value: formatPkr(revenue),
+            icon: Symbols.trending_up,
+            iconColor: AppColors.sell,
+            bgColor: AppColors.sellLight,
+            isLoading: isLoading,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Today',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _TodayMetric(
-                    label: 'Revenue',
-                    value: formatPkr(revenue),
-                    color: AppColors.sell,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 48,
-                  color: Colors.grey.shade200,
-                ),
-                Expanded(
-                  child: _TodayMetric(
-                    label: 'Profit',
-                    value: formatPkr(profit),
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: totalOutstanding > 0
-                    ? AppColors.warning.withValues(alpha: 0.08)
-                    : AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: totalOutstanding > 0
-                    ? Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.25),
-                      )
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 16,
-                    color: totalOutstanding > 0
-                        ? AppColors.warning
-                        : AppColors.muted,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Udhaar Outstanding',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: totalOutstanding > 0
-                            ? AppColors.warning
-                            : AppColors.muted,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    formatPkr(totalOutstanding),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: totalOutstanding > 0
-                          ? AppColors.warning
-                          : AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  _StockPill(
-                    icon: Icons.category_outlined,
-                    label: '$itemCount products',
-                  ),
-                  const SizedBox(width: 12),
-                  _StockPill(
-                    icon: Icons.inventory_outlined,
-                    label: '$totalUnits units in stock',
-                  ),
-                ],
-              ),
-            ),
-          ],
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            label: 'Profit',
+            value: formatPkr(profit),
+            icon: Symbols.monetization_on,
+            iconColor: AppColors.primary,
+            bgColor: AppColors.primaryLight,
+            isLoading: isLoading,
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _TodayMetric extends StatelessWidget {
+class _StatCard extends StatelessWidget {
   final String label;
   final String value;
-  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  final Color bgColor;
+  final bool isLoading;
 
-  const _TodayMetric({
+  const _StatCard({
     required this.label,
     required this.value,
-    required this.color,
+    required this.icon,
+    required this.iconColor,
+    required this.bgColor,
+    required this.isLoading,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-          const SizedBox(height: 6),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const Spacer(),
+              Text(
+                'Today',
+                style: GoogleFonts.inter(
+                    fontSize: 11, color: AppColors.mutedLight),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isLoading)
+            Container(
+              height: 22,
+              width: 72,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            )
+          else
+            Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.neutralDark,
+                letterSpacing: -0.5,
+              ),
+            ),
+          const SizedBox(height: 3),
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-              letterSpacing: -0.5,
+            label,
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Outstanding Strip ─────────────────────────────────────────────────────────
+
+class _OutstandingStrip extends StatelessWidget {
+  final double amount;
+  const _OutstandingStrip({required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.warningLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Symbols.warning, size: 16,
+              color: AppColors.warning, fill: 1),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Outstanding khata',
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.warning),
+            ),
+          ),
+          Text(
+            formatPkr(amount),
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.warning,
             ),
           ),
         ],
@@ -541,127 +422,156 @@ class _TodayMetric extends StatelessWidget {
   }
 }
 
-class _StockPill extends StatelessWidget {
+// ── Action Grid ───────────────────────────────────────────────────────────────
+
+class _ActionItem {
   final IconData icon;
   final String label;
+  final String subtitle;
+  final Color color;
+  final String? badge;
+  final VoidCallback onTap;
 
-  const _StockPill({required this.icon, required this.label});
+  const _ActionItem({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+    this.badge,
+  });
+}
+
+class _ActionGrid extends StatelessWidget {
+  final List<_ActionItem> items;
+  const _ActionGrid({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.muted),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.05,
+      children: items.map((item) => _ActionCard(item: item)).toList(),
     );
   }
 }
 
 class _ActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final String? badge;
-  final Color? badgeColor;
-
-  const _ActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.badge,
-    this.badgeColor,
-  });
+  final _ActionItem item;
+  const _ActionCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        onTap: item.onTap,
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        if (badge != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: (badgeColor ?? AppColors.sell)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              badge!,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: badgeColor ?? AppColors.sell,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: item.color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 13, color: AppColors.muted),
+                    child: Icon(item.icon, color: item.color, size: 22),
+                  ),
+                  if (item.badge != null) ...[
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.sell.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.badge!,
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.sell,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
                     ),
                   ],
+                ],
+              ),
+              const Spacer(),
+              Text(
+                item.label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.neutralDark,
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+              const SizedBox(height: 2),
+              Text(
+                item.subtitle,
+                style: GoogleFonts.inter(
+                    fontSize: 11, color: AppColors.muted),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Inventory Summary Strip ───────────────────────────────────────────────────
+
+class _InventorySummary extends StatelessWidget {
+  final int itemCount;
+  const _InventorySummary({required this.itemCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.restock.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Icon(Symbols.inventory_2,
+                size: 16, color: AppColors.restock),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '$itemCount products in inventory',
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.muted),
+            ),
+          ),
+          const Icon(Symbols.chevron_right,
+              size: 18, color: AppColors.mutedLight),
+        ],
       ),
     );
   }

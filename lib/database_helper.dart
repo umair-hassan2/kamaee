@@ -410,6 +410,17 @@ class DatabaseHelper {
   }
 
 
+  Future<List<Sale>> getAllCompletedSales() async {
+    final db = await database;
+    final rows = await db.query(
+      'sales',
+      where: 'status = ?',
+      whereArgs: [SaleStatus.completed.name],
+      orderBy: 'timestamp DESC',
+    );
+    return rows.map((r) => Sale.fromMap(r)).toList();
+  }
+
   Future<List<Sale>> getCompletedSalesBetween(DateTime start, DateTime end) async {
     final db = await database;
     final rows = await db.query(

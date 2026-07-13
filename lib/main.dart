@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_shell.dart';
 import 'services/cart_service.dart';
 import 'services/finance_service.dart';
 import 'services/notification_service.dart';
@@ -11,8 +11,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SettingsService().load();
   await NotificationService().init();
-  await CartService().init(); // hydrate cart badge from any persisted draft
-  _scheduleDailySummary(); // fire-and-forget
+  await CartService().init();
+  _scheduleDailySummary();
   runApp(const MyApp());
 }
 
@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
       title: 'Kamaae',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const HomeScreen(),
+      home: const MainShell(),
     );
   }
 }

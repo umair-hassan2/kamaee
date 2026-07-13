@@ -7,6 +7,7 @@ import '../models/sale.dart';
 import '../services/khata_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import 'sale_detail_screen.dart';
 
 class CustomerDetailScreen extends StatefulWidget {
   final Customer customer;
@@ -226,7 +227,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                     onPayment: () => _showEntrySheet(entryType: KhataEntryType.payment),
                     onDelete: _deleteEntry,
                   ),
-                  _SalesTab(sales: _sales),
+                  _SalesTab(sales: _sales, customerName: _customer.name),
                 ],
               ),
             ),
@@ -406,8 +407,9 @@ class _KhataTab extends StatelessWidget {
 
 class _SalesTab extends StatelessWidget {
   final List<Sale> sales;
+  final String customerName;
 
-  const _SalesTab({required this.sales});
+  const _SalesTab({required this.sales, required this.customerName});
 
   @override
   Widget build(BuildContext context) {
@@ -432,15 +434,16 @@ class _SalesTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: sales.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _SaleTile(sale: sales[i]),
+      itemBuilder: (_, i) => _SaleTile(sale: sales[i], customerName: customerName),
     );
   }
 }
 
 class _SaleTile extends StatelessWidget {
   final Sale sale;
+  final String? customerName;
 
-  const _SaleTile({required this.sale});
+  const _SaleTile({required this.sale, this.customerName});
 
   @override
   Widget build(BuildContext context) {
@@ -465,10 +468,21 @@ class _SaleTile extends StatelessWidget {
         methodLabel = 'Partial';
     }
 
-    return Container(
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                SaleDetailScreen(sale: sale, customerName: customerName),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -525,6 +539,8 @@ class _SaleTile extends StatelessWidget {
           ),
         ],
       ),
+        ),
+      ),
     );
   }
 }
@@ -536,6 +552,21 @@ class _EntryTile extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _EntryTile({required this.entry, required this.onDelete});
+
+  Future<void> _openSale(BuildContext context) async {
+    final db = DatabaseHelper();
+    final rows = await db.database.then((d) => d.query(
+          'sales',
+          where: 'id = ?',
+          whereArgs: [entry.saleId],
+        ));
+    if (rows.isEmpty || !context.mounted) return;
+    final sale = Sale.fromMap(rows.first);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SaleDetailScreen(sale: sale)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -553,6 +584,7 @@ class _EntryTile extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(10),
@@ -588,48 +620,66 @@ class _EntryTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (entry.saleId != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text('From Sale',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500)),
-                      ),
-                    ],
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        formatPkr(entry.amount),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: color,
-                        ),
+                    Text(
+                      formatPkr(entry.amount),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: color,
                       ),
                     ),
                   ],
                 ),
                 if (entry.note != null && entry.note!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(entry.note!,
-                      style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                  const SizedBox(height: 6),
+                  Text(
+                    entry.note!,
+                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  ),
                 ],
-                const SizedBox(height: 2),
-                Text(dateStr,
-                    style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(dateStr,
+                        style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                    if (entry.saleId != null) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _openSale(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.receipt_outlined,
+                                  size: 11, color: AppColors.primary),
+                              SizedBox(width: 3),
+                              Text('View Sale',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
           IconButton(
             icon: Icon(Icons.delete_outline, color: Colors.grey.shade400),
             onPressed: onDelete,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
