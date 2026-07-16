@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../services/cash_register_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import 'cash_register_screen.dart';
@@ -17,42 +17,93 @@ class MoreScreen extends StatefulWidget {
 
 class _MoreScreenState extends State<MoreScreen> {
   final _settings = SettingsService();
+  final _cashRegisterService = CashRegisterService();
+  bool _registerOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRegister();
+  }
+
+  Future<void> _checkRegister() async {
+    final session = await _cashRegisterService.getActiveSession();
+    if (mounted) setState(() => _registerOpen = session != null);
+  }
 
   Future<void> _push(Widget screen) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      await _checkRegister();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     final shopName = _settings.settings.shopName;
     final ownerName = _settings.settings.ownerName;
-    final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.paper,
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: _buildHeader(shopName, ownerName, topPadding),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, topPadding + 14, 20, 26),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.greenLight,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Symbols.storefront,
+                        color: AppColors.green, size: 28, fill: 1),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          shopName.isNotEmpty ? shopName : 'Kamaae',
+                          style: bricolage(
+                              fontSize: 21, fontWeight: FontWeight.w700),
+                        ),
+                        if (ownerName.isNotEmpty)
+                          Text(ownerName,
+                              style: instrument(
+                                  fontSize: 13, color: AppColors.muted)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _SectionLabel('Analytics'),
                 const SizedBox(height: 10),
-                _MenuCard(items: [
-                  _MenuItem(
+                _MenuGroup(items: [
+                  _MenuEntry(
                     icon: Symbols.trending_up,
-                    iconColor: AppColors.sell,
+                    iconBg: AppColors.greenLight,
+                    iconColor: AppColors.green,
                     label: 'Cash Flow',
                     subtitle: 'Charts, history & cost analysis',
                     onTap: () => _push(const FinanceScreen()),
                   ),
-                  _MenuItem(
+                  _MenuEntry(
                     icon: Symbols.receipt_long,
-                    iconColor: AppColors.primary,
+                    iconBg: AppColors.amberLight,
+                    iconColor: AppColors.amber,
                     label: 'Sales History',
                     subtitle: 'Browse all past sales & bills',
                     onTap: () => _push(const SalesHistoryScreen()),
@@ -61,21 +112,24 @@ class _MoreScreenState extends State<MoreScreen> {
                 const SizedBox(height: 20),
                 _SectionLabel('Operations'),
                 const SizedBox(height: 10),
-                _MenuCard(items: [
-                  _MenuItem(
+                _MenuGroup(items: [
+                  _MenuEntry(
                     icon: Symbols.point_of_sale,
-                    iconColor: AppColors.primary,
+                    iconBg: AppColors.greenLight,
+                    iconColor: AppColors.green,
                     label: 'Cash Register',
                     subtitle: 'Open & close daily register',
+                    badge: _registerOpen ? 'OPEN' : null,
                     onTap: () => _push(const CashRegisterScreen()),
                   ),
                 ]),
                 const SizedBox(height: 20),
                 _SectionLabel('Preferences'),
                 const SizedBox(height: 10),
-                _MenuCard(items: [
-                  _MenuItem(
+                _MenuGroup(items: [
+                  _MenuEntry(
                     icon: Symbols.settings,
+                    iconBg: AppColors.paperDark,
                     iconColor: AppColors.muted,
                     label: 'Settings',
                     subtitle: 'Shop profile, currency, alerts',
@@ -86,8 +140,7 @@ class _MoreScreenState extends State<MoreScreen> {
                 Center(
                   child: Text(
                     'Kamaae · v1.0.0',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: AppColors.mutedLight),
+                    style: instrument(fontSize: 12, color: AppColors.mutedLight),
                   ),
                 ),
               ]),
@@ -97,48 +150,9 @@ class _MoreScreenState extends State<MoreScreen> {
       ),
     );
   }
-
-  Widget _buildHeader(String shopName, String ownerName, double topPadding) {
-    return Container(
-      color: Colors.white,
-      padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 20),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Symbols.storefront,
-                color: AppColors.primary, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  shopName.isNotEmpty ? shopName : 'Kamaae',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.neutralDark,
-                  ),
-                ),
-                if (ownerName.isNotEmpty)
-                  Text(ownerName,
-                      style: GoogleFonts.inter(
-                          fontSize: 13, color: AppColors.muted)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+// ── Section label ─────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String label;
@@ -148,94 +162,122 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: GoogleFonts.inter(
+      style: instrument(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         color: AppColors.muted,
-        letterSpacing: 0.8,
+        letterSpacing: 0.14,
       ),
     );
   }
 }
 
-class _MenuItem {
+// ── Menu entry data ───────────────────────────────────────────────────────────
+
+class _MenuEntry {
   final IconData icon;
+  final Color iconBg;
   final Color iconColor;
   final String label;
   final String subtitle;
+  final String? badge;
   final VoidCallback onTap;
 
-  const _MenuItem({
+  const _MenuEntry({
     required this.icon,
+    required this.iconBg,
     required this.iconColor,
     required this.label,
     required this.subtitle,
     required this.onTap,
+    this.badge,
   });
 }
 
-class _MenuCard extends StatelessWidget {
-  final List<_MenuItem> items;
-  const _MenuCard({required this.items});
+// ── Menu group ────────────────────────────────────────────────────────────────
+
+class _MenuGroup extends StatelessWidget {
+  final List<_MenuEntry> items;
+  const _MenuGroup({required this.items});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: List.generate(items.length, (i) {
-          final item = items[i];
+          final entry = items[i];
           final isLast = i == items.length - 1;
           return Column(
             children: [
               InkWell(
-                onTap: item.onTap,
+                onTap: entry.onTap,
                 borderRadius: BorderRadius.vertical(
                   top: i == 0 ? const Radius.circular(16) : Radius.zero,
                   bottom: isLast ? const Radius.circular(16) : Radius.zero,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
                       Container(
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: item.iconColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
+                          color: entry.iconBg,
+                          borderRadius: BorderRadius.circular(11),
                         ),
-                        child: Icon(item.icon,
-                            color: item.iconColor, size: 20),
+                        child: Icon(entry.icon,
+                            color: entry.iconColor, size: 21),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item.label,
-                                style: GoogleFonts.inter(
+                            Text(entry.label,
+                                style: instrument(
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.neutralDark)),
-                            Text(item.subtitle,
-                                style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.ink)),
+                            Text(entry.subtitle,
+                                style: instrument(
                                     fontSize: 12, color: AppColors.muted)),
                           ],
                         ),
                       ),
-                      const Icon(Symbols.chevron_right,
-                          size: 18, color: AppColors.mutedLight),
+                      if (entry.badge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.greenLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            entry.badge!,
+                            style: instrument(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.greenDark,
+                              letterSpacing: 0.06,
+                            ),
+                          ),
+                        )
+                      else
+                        const Icon(Symbols.chevron_right,
+                            size: 20, color: AppColors.mutedLight),
                     ],
                   ),
                 ),
               ),
-              if (!isLast) const Divider(height: 1, indent: 70),
+              if (!isLast)
+                const Divider(height: 1, indent: 70, color: AppColors.border),
             ],
           );
         }),

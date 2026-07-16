@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/customer.dart';
 import '../services/khata_service.dart';
 import '../theme/app_theme.dart';
@@ -46,16 +47,13 @@ class _KhataScreenState extends State<KhataScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          20 + MediaQuery.of(ctx).viewInsets.bottom,
+          20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom,
         ),
         child: Form(
           key: formKey,
@@ -63,20 +61,18 @@ class _KhataScreenState extends State<KhataScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Add Customer',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              Text('Add Customer',
+                  style: bricolage(fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 20),
               TextFormField(
                 controller: nameController,
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
+                style: instrument(fontSize: 15),
                 decoration: const InputDecoration(
                   labelText: 'Customer Name *',
                   hintText: 'e.g. Ahmed Bhai',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person_outline),
+                  prefixIcon: Icon(Symbols.person),
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Name is required' : null,
@@ -85,11 +81,11 @@ class _KhataScreenState extends State<KhataScreen> {
               TextFormField(
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
+                style: instrument(fontSize: 15),
                 decoration: const InputDecoration(
                   labelText: 'Phone (optional)',
                   hintText: '03XX-XXXXXXX',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone_outlined),
+                  prefixIcon: Icon(Symbols.phone),
                 ),
               ),
               const SizedBox(height: 20),
@@ -105,10 +101,6 @@ class _KhataScreenState extends State<KhataScreen> {
                   if (ctx.mounted) Navigator.of(ctx).pop();
                   await _loadData();
                 },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
                 child: const Text('Add Customer'),
               ),
             ],
@@ -122,9 +114,11 @@ class _KhataScreenState extends State<KhataScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Customer'),
+        title: Text('Delete Customer',
+            style: bricolage(fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text(
           'Delete ${customer.name} and all their khata entries? This cannot be undone.',
+          style: instrument(fontSize: 14),
         ),
         actions: [
           TextButton(
@@ -133,7 +127,7 @@ class _KhataScreenState extends State<KhataScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -145,107 +139,103 @@ class _KhataScreenState extends State<KhataScreen> {
     }
   }
 
+  int get _withBalance => _customers.where((c) => c.balance > 0).length;
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
+      backgroundColor: AppColors.paper,
       body: RefreshIndicator(
         onRefresh: _loadData,
+        color: AppColors.green,
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 24),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                  ),
-                  borderRadius:
-                      BorderRadius.vertical(bottom: Radius.circular(28)),
-                ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, topPadding + 14, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        const SizedBox(width: 4),
-                        const Expanded(
-                          child: Text(
-                            'Khata / Udhaar',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                    Text('Khata / Udhaar',
+                        style: bricolage(
+                            fontSize: 28, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 14),
+
+                    // ── Hero card ────────────────────────────────────────
                     Container(
-                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25),
-                        ),
+                        color: AppColors.ink,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      child: Row(
+                      padding: const EdgeInsets.all(22),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet_outlined,
-                              color: Colors.white,
-                              size: 22,
+                          Row(
+                            children: [
+                              const Icon(Symbols.account_balance_wallet,
+                                  size: 18,
+                                  color: Color(0xFFE0A64E),
+                                  fill: 1),
+                              const SizedBox(width: 10),
+                              Text(
+                                'TOTAL OUTSTANDING',
+                                style: instrument(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkMuted,
+                                  letterSpacing: 0.14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            formatPkr(_totalOutstanding),
+                            style: mono(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.onDark,
+                              letterSpacing: -0.02,
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Total Outstanding',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  formatPkr(_totalOutstanding),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Across $_withBalance ${_withBalance == 1 ? 'customer' : 'customers'} with a balance',
+                            style: instrument(
+                                fontSize: 12.5, color: AppColors.inkMuted),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
+
+                    Row(
+                      children: [
+                        Text(
+                          'CUSTOMERS',
+                          style: instrument(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted,
+                            letterSpacing: 0.14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${_customers.length} total',
+                          style: instrument(fontSize: 12.5, color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
+
             if (_isLoading)
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
@@ -256,131 +246,52 @@ class _KhataScreenState extends State<KhataScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.people_outline,
-                        size: 64,
-                        color: Colors.grey.shade400,
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.amberLight,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(Symbols.people,
+                            size: 36, color: AppColors.amber),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'No customers yet.',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Add your first customer.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
+                      Text('No customers yet.',
+                          style: instrument(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink)),
+                      const SizedBox(height: 6),
+                      Text('Tap + to add your first customer.',
+                          style: instrument(
+                              fontSize: 14, color: AppColors.muted)),
                     ],
                   ),
                 ),
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final customer = _customers[index];
-                      final hasBalance = customer.balance > 0;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.12),
-                            child: Text(
-                              customer.name.isNotEmpty
-                                  ? customer.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            customer.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: customer.phone.isNotEmpty
-                              ? Text(
-                                  customer.phone,
-                                  style: const TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 13,
-                                  ),
-                                )
-                              : null,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    formatPkr(customer.balance),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: hasBalance
-                                          ? AppColors.danger
-                                          : AppColors.sell,
-                                    ),
-                                  ),
-                                  Text(
-                                    hasBalance ? 'owes' : 'cleared',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: hasBalance
-                                          ? AppColors.danger
-                                              .withValues(alpha: 0.7)
-                                          : AppColors.muted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.grey.shade400,
-                                ),
-                                onPressed: () => _deleteCustomer(customer),
-                              ),
-                            ],
-                          ),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _CustomerCard(
+                          customer: customer,
                           onTap: () async {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => CustomerDetailScreen(
-                                  customer: customer,
-                                ),
+                                builder: (_) =>
+                                    CustomerDetailScreen(customer: customer),
                               ),
                             );
                             await _loadData();
                           },
+                          onDelete: () => _deleteCustomer(customer),
                         ),
                       );
                     },
@@ -393,10 +304,115 @@ class _KhataScreenState extends State<KhataScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddCustomerSheet,
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.green,
         foregroundColor: Colors.white,
-        tooltip: 'Add Customer',
-        child: const Icon(Icons.add),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(Symbols.person_add),
+      ),
+    );
+  }
+}
+
+// ── Customer card ─────────────────────────────────────────────────────────────
+
+class _CustomerCard extends StatelessWidget {
+  final Customer customer;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _CustomerCard({
+    required this.customer,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasBalance = customer.balance > 0;
+    final initial = customer.name.isNotEmpty
+        ? customer.name[0].toUpperCase()
+        : '?';
+
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: hasBalance ? AppColors.amberLight : AppColors.greenLight,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: bricolage(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: hasBalance ? AppColors.amber : AppColors.green,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(customer.name,
+                        style: instrument(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+                    if (customer.phone.isNotEmpty)
+                      Text(customer.phone,
+                          style: mono(
+                              fontSize: 12, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatPkr(customer.balance),
+                    style: mono(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: hasBalance ? AppColors.red : AppColors.green,
+                    ),
+                  ),
+                  Text(
+                    hasBalance ? 'owes' : 'cleared',
+                    style: instrument(
+                      fontSize: 11,
+                      color: hasBalance
+                          ? AppColors.red.withValues(alpha: 0.7)
+                          : AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Symbols.delete_outline,
+                    size: 20, color: AppColors.mutedLight),
+                onPressed: onDelete,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

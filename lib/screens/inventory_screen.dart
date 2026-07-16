@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
 import '../services/settings_service.dart';
@@ -55,29 +56,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _filterItems() {
     final query = _searchController.text.trim().toLowerCase();
     var result = List<Item>.from(_items);
-
     if (query.isNotEmpty) {
       result = result
-          .where(
-            (item) =>
-                item.name.toLowerCase().contains(query) ||
-                item.barcode.toLowerCase().contains(query),
-          )
+          .where((item) =>
+              item.name.toLowerCase().contains(query) ||
+              item.barcode.toLowerCase().contains(query))
           .toList();
     }
-
     result.sort((a, b) {
       switch (_sortBy) {
         case 'quantity':
           return a.quantity.compareTo(b.quantity);
         case 'price':
           return b.sellingPrice.compareTo(a.sellingPrice);
-        case 'name':
         default:
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       }
     });
-
     setState(() => _filtered = result);
   }
 
@@ -94,254 +89,306 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   int get _totalUnits => _items.fold(0, (sum, item) => sum + item.quantity);
-
-  int get _lowStockCount => _items
-      .where((item) => _settingsService.isLowStock(item.quantity))
-      .length;
-
+  int get _lowStockCount =>
+      _items.where((i) => _settingsService.isLowStock(i.quantity)).length;
   int get _outOfStockCount =>
-      _items.where((item) => _settingsService.isOutOfStock(item.quantity)).length;
+      _items.where((i) => _settingsService.isOutOfStock(i.quantity)).length;
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 120,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Inventory'),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryCard(
-                          label: 'Items',
-                          value: '${_items.length}',
-                          icon: Icons.category_outlined,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _SummaryCard(
-                          label: 'Units',
-                          value: '$_totalUnits',
-                          icon: Icons.inventory_outlined,
-                          color: AppColors.restock,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryCard(
-                          label: 'Low Stock',
-                          value: '$_lowStockCount',
-                          icon: Icons.warning_amber_rounded,
-                          color: AppColors.warning,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _SummaryCard(
-                          label: 'Out of Stock',
-                          value: '$_outOfStockCount',
-                          icon: Icons.remove_shopping_cart_outlined,
-                          color: AppColors.danger,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by name or barcode...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => _searchController.clear(),
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Text(
-                        'Sort by',
-                        style: TextStyle(color: AppColors.muted, fontSize: 13),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+      backgroundColor: AppColors.paper,
+      body: RefreshIndicator(
+        onRefresh: _loadItems,
+        color: AppColors.green,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, topPadding + 14, 20, 0),
+                child: Column(
+                  children: [
+                    // ── Header ────────────────────────────────────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _SortChip(
-                                label: 'Name',
-                                selected: _sortBy == 'name',
-                                onTap: () {
-                                  setState(() => _sortBy = 'name');
-                                  _filterItems();
-                                },
-                              ),
-                              _SortChip(
-                                label: 'Stock',
-                                selected: _sortBy == 'quantity',
-                                onTap: () {
-                                  setState(() => _sortBy = 'quantity');
-                                  _filterItems();
-                                },
-                              ),
-                              _SortChip(
-                                label: 'Price',
-                                selected: _sortBy == 'price',
-                                onTap: () {
-                                  setState(() => _sortBy = 'price');
-                                  _filterItems();
-                                },
+                              Text('Inventory',
+                                  style: bricolage(
+                                      fontSize: 28, fontWeight: FontWeight.w700)),
+                              Text(
+                                '${_items.length} products · $_totalUnits units',
+                                style: instrument(
+                                    fontSize: 13, color: AppColors.muted),
                               ),
                             ],
                           ),
                         ),
+                        GestureDetector(
+                          onTap: () => _navigateToAddItem(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.ink,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Symbols.add,
+                                size: 22, color: AppColors.paper),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ── Stats grid ───────────────────────────────────────
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 2.5,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      children: [
+                        _StatTile(
+                          icon: Symbols.category,
+                          iconBg: AppColors.greenLight,
+                          iconColor: AppColors.green,
+                          value: '${_items.length}',
+                          label: 'Items',
+                        ),
+                        _StatTile(
+                          icon: Symbols.inventory_2,
+                          iconBg: AppColors.blueLight,
+                          iconColor: AppColors.blue,
+                          value: '$_totalUnits',
+                          label: 'Units',
+                        ),
+                        _StatTile(
+                          icon: Symbols.warning,
+                          iconBg: AppColors.amberLight,
+                          iconColor: AppColors.amber,
+                          value: '$_lowStockCount',
+                          label: 'Low stock',
+                        ),
+                        _StatTile(
+                          icon: Symbols.remove_shopping_cart,
+                          iconBg: AppColors.redLight,
+                          iconColor: AppColors.red,
+                          value: '$_outOfStockCount',
+                          label: 'Out',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── Search ───────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_filtered.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.inventory_2_outlined,
-                        size: 64, color: Colors.grey.shade400),
-                    const SizedBox(height: 16),
-                    Text(
-                      _items.isEmpty
-                          ? 'No items yet'
-                          : 'No items match your search',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
+                      child: Row(
+                        children: [
+                          const Icon(Symbols.search,
+                              size: 20, color: AppColors.mutedLight),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              style: instrument(fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Search by name or barcode…',
+                                hintStyle: instrument(
+                                    fontSize: 14, color: AppColors.mutedLight),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                          if (_searchController.text.isNotEmpty)
+                            GestureDetector(
+                              onTap: _searchController.clear,
+                              child: const Icon(Symbols.close,
+                                  size: 18, color: AppColors.muted),
+                            ),
+                        ],
                       ),
                     ),
-                    if (_items.isEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Scan a barcode to add your first item',
-                        style: TextStyle(color: Colors.grey.shade500),
-                      ),
-                    ],
+                    const SizedBox(height: 12),
+
+                    // ── Sort chips ───────────────────────────────────────
+                    Row(
+                      children: [
+                        _SortChip(
+                            label: 'Name',
+                            selected: _sortBy == 'name',
+                            onTap: () {
+                              setState(() => _sortBy = 'name');
+                              _filterItems();
+                            }),
+                        const SizedBox(width: 8),
+                        _SortChip(
+                            label: 'Stock',
+                            selected: _sortBy == 'quantity',
+                            onTap: () {
+                              setState(() => _sortBy = 'quantity');
+                              _filterItems();
+                            }),
+                        const SizedBox(width: 8),
+                        _SortChip(
+                            label: 'Price',
+                            selected: _sortBy == 'price',
+                            onTap: () {
+                              setState(() => _sortBy = 'price');
+                              _filterItems();
+                            }),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
                   ],
                 ),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList.separated(
-                itemCount: _filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final item = _filtered[index];
-                  return _InventoryItemCard(
-                    item: item,
-                    lowStockThreshold: _settingsService.lowStockThreshold,
-                    onTap: () => _openItemActions(item),
-                  );
-                },
-              ),
             ),
-        ],
+
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_filtered.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.greenLight,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(Symbols.inventory_2,
+                            size: 36, color: AppColors.green),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _items.isEmpty
+                            ? 'No items yet'
+                            : 'No items match your search',
+                        style: instrument(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink),
+                      ),
+                      if (_items.isEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Scan a barcode to add your first item',
+                          style: instrument(fontSize: 13, color: AppColors.muted),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                sliver: SliverList.separated(
+                  itemCount: _filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final item = _filtered[index];
+                    return _InventoryItemCard(
+                      item: item,
+                      lowStockThreshold: _settingsService.lowStockThreshold,
+                      onTap: () => _openItemActions(item),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _navigateToAddItem(BuildContext context) {
+    // Scan a barcode to add — trigger scanner from here if needed
+    // For now, tap the + to show a message; actual add happens via barcode scanner
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Use barcode scanner to add new items')),
     );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+// ── Stat tile ─────────────────────────────────────────────────────────────────
 
-  const _SummaryCard({
-    required this.label,
-    required this.value,
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String value;
+  final String label;
+
+  const _StatTile({
     required this.icon,
-    required this.color,
+    required this.iconBg,
+    required this.iconColor,
+    required this.value,
+    required this.label,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: iconBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, size: 19, color: iconColor),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style:
-                        const TextStyle(fontSize: 11, color: AppColors.muted)),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(width: 11),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(value,
+                  style: mono(
+                      fontSize: 19, fontWeight: FontWeight.w700, color: AppColors.ink)),
+              Text(label,
+                  style: instrument(fontSize: 11, color: AppColors.muted)),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
+// ── Sort chip ─────────────────────────────────────────────────────────────────
 
 class _SortChip extends StatelessWidget {
   final String label;
@@ -356,18 +403,30 @@ class _SortChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        selectedColor: AppColors.primary.withValues(alpha: 0.15),
-        checkmarkColor: AppColors.primary,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.ink : AppColors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: selected ? AppColors.ink : AppColors.border),
+        ),
+        child: Text(
+          label,
+          style: instrument(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.paper : AppColors.secondary,
+          ),
+        ),
       ),
     );
   }
 }
+
+// ── Inventory item card ───────────────────────────────────────────────────────
 
 class _InventoryItemCard extends StatelessWidget {
   final Item item;
@@ -380,81 +439,92 @@ class _InventoryItemCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Color get _stockColor {
-    if (item.quantity <= 0) return AppColors.danger;
-    if (item.quantity <= lowStockThreshold) return AppColors.warning;
-    return AppColors.sell;
-  }
-
-  String get _stockLabel {
-    if (item.quantity <= 0) return 'Out of stock';
-    if (item.quantity <= lowStockThreshold) return 'Low stock';
-    return 'In stock';
+  ({Color bg, Color text, String label}) get _stockStatus {
+    if (item.quantity <= 0) {
+      return (
+        bg: AppColors.redLight,
+        text: AppColors.red,
+        label: 'Out of stock'
+      );
+    }
+    if (item.quantity <= lowStockThreshold) {
+      return (
+        bg: AppColors.amberLight,
+        text: AppColors.amberDark,
+        label: 'Low stock'
+      );
+    }
+    return (
+      bg: AppColors.greenLight,
+      text: AppColors.greenDark,
+      label: 'In stock'
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = _stockStatus;
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
-              ItemPhotoWidget(photoPath: item.photoPath),
-              const SizedBox(width: 14),
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.paperDark,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: ItemPhotoWidget(photoPath: item.photoPath),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       item.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
+                      style: instrument(
+                          fontSize: 15, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       item.barcode,
-                      style:
-                          const TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: mono(fontSize: 11.5, color: AppColors.muted),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 7),
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _stockColor.withValues(alpha: 0.12),
+                            color: s.bg,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text(
-                            _stockLabel,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _stockColor,
-                            ),
-                          ),
+                          child: Text(s.label,
+                              style: instrument(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: s.text)),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Qty: ${item.quantity}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.muted,
-                          ),
+                          'Qty ${item.quantity}',
+                          style:
+                              instrument(fontSize: 11.5, color: AppColors.muted),
                         ),
                       ],
                     ),
@@ -466,21 +536,16 @@ class _InventoryItemCard extends StatelessWidget {
                 children: [
                   Text(
                     formatPkr(item.sellingPrice),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppColors.sell,
-                    ),
+                    style: mono(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.green),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'tap to manage',
-                    style: TextStyle(fontSize: 11, color: AppColors.muted),
-                  ),
+                  const SizedBox(height: 2),
+                  Text('manage',
+                      style: instrument(fontSize: 10.5, color: AppColors.mutedLight)),
                 ],
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),
         ),

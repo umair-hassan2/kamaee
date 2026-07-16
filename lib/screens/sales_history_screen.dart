@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../database_helper.dart';
 import '../models/sale.dart';
 import '../services/khata_service.dart';
@@ -49,61 +50,98 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sales History'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: _sales.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.receipt_long_outlined,
-                              size: 56, color: AppColors.muted),
-                          SizedBox(height: 12),
-                          Text('No sales yet',
-                              style: TextStyle(
-                                  fontSize: 16, color: AppColors.muted)),
-                          SizedBox(height: 6),
-                          Text('Completed sales will appear here',
-                              style: TextStyle(
-                                  fontSize: 13, color: AppColors.muted)),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _sales.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) {
-                        final sale = _sales[i];
-                        final customerName = sale.customerId != null
-                            ? _customerNames[sale.customerId!]
-                            : null;
-                        return _SaleHistoryTile(
-                          sale: sale,
-                          customerName: customerName,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => SaleDetailScreen(
-                                sale: sale,
-                                customerName: customerName,
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Symbols.arrow_back,
+                        size: 24, color: AppColors.ink),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Sales History',
+                      style: bricolage(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadData,
+                      color: AppColors.green,
+                      child: _sales.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 72,
+                                    height: 72,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.amberLight,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Icon(Symbols.receipt_long,
+                                        size: 36, color: AppColors.amber),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text('No sales yet',
+                                      style: instrument(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.ink)),
+                                  const SizedBox(height: 6),
+                                  Text('Completed sales will appear here',
+                                      style: instrument(
+                                          fontSize: 13,
+                                          color: AppColors.muted)),
+                                ],
                               ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                              itemCount: _sales.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (_, i) {
+                                final sale = _sales[i];
+                                final customerName = sale.customerId != null
+                                    ? _customerNames[sale.customerId!]
+                                    : null;
+                                return _SaleHistoryTile(
+                                  sale: sale,
+                                  customerName: customerName,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => SaleDetailScreen(
+                                        sale: sale,
+                                        customerName: customerName,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
                     ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }
+
+// ── Sale history tile ─────────────────────────────────────────────────────────
 
 class _SaleHistoryTile extends StatelessWidget {
   final Sale sale;
@@ -121,26 +159,36 @@ class _SaleHistoryTile extends StatelessWidget {
     final dt = DateTime.fromMillisecondsSinceEpoch(sale.timestamp);
     final dateStr = DateFormat('d MMM yyyy, h:mm a').format(dt);
 
-    Color methodColor;
-    IconData methodIcon;
-    String methodLabel;
-    switch (sale.paymentMethod) {
-      case PaymentMethod.cash:
-        methodColor = AppColors.sell;
-        methodIcon = Icons.payments_outlined;
-        methodLabel = 'Cash';
-      case PaymentMethod.khata:
-        methodColor = AppColors.warning;
-        methodIcon = Icons.account_balance_wallet_outlined;
-        methodLabel = 'Full Khata';
-      case PaymentMethod.partial:
-        methodColor = AppColors.accent;
-        methodIcon = Icons.call_split_outlined;
-        methodLabel = 'Partial';
-    }
+    final ({Color iconBg, Color iconColor, Color textBg, Color textColor,
+        IconData icon, String label}) method = switch (sale.paymentMethod) {
+      PaymentMethod.cash => (
+          iconBg: AppColors.greenLight,
+          iconColor: AppColors.green,
+          textBg: AppColors.greenLight,
+          textColor: AppColors.greenDark,
+          icon: Symbols.payments,
+          label: 'Cash',
+        ),
+      PaymentMethod.khata => (
+          iconBg: AppColors.amberLight,
+          iconColor: AppColors.amber,
+          textBg: AppColors.amberLight,
+          textColor: AppColors.amberDark,
+          icon: Symbols.account_balance_wallet,
+          label: 'Full Khata',
+        ),
+      PaymentMethod.partial => (
+          iconBg: AppColors.tealLight,
+          iconColor: AppColors.teal,
+          textBg: AppColors.tealLight,
+          textColor: AppColors.tealDark,
+          icon: Symbols.call_split,
+          label: 'Partial',
+        ),
+    };
 
     return Material(
-      color: Colors.white,
+      color: AppColors.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -149,17 +197,18 @@ class _SaleHistoryTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: methodColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  color: method.iconBg,
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(methodIcon, color: methodColor, size: 20),
+                child: Icon(method.icon, color: method.iconColor, size: 21),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -168,33 +217,32 @@ class _SaleHistoryTile extends StatelessWidget {
                   children: [
                     if (customerName != null)
                       Text(customerName!,
-                          style: const TextStyle(
+                          style: instrument(
                               fontSize: 14, fontWeight: FontWeight.w600)),
                     Text(dateStr,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.muted)),
-                    const SizedBox(height: 4),
+                        style: mono(fontSize: 12, color: AppColors.muted)),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: methodColor.withValues(alpha: 0.12),
+                            color: method.textBg,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text(methodLabel,
-                              style: TextStyle(
+                          child: Text(method.label,
+                              style: instrument(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: methodColor)),
+                                  color: method.textColor)),
                         ),
                         if (sale.khataAmount > 0) ...[
                           const SizedBox(width: 6),
                           Text(
                             '${formatPkr(sale.khataAmount)} on khata',
-                            style: const TextStyle(
-                                fontSize: 11, color: AppColors.warning),
+                            style:
+                                mono(fontSize: 11, color: AppColors.amber),
                           ),
                         ],
                       ],
@@ -207,15 +255,14 @@ class _SaleHistoryTile extends StatelessWidget {
                 children: [
                   Text(
                     formatPkr(sale.totalAmount),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                    style: mono(
                         fontSize: 15,
-                        color: AppColors.primaryDark),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink),
                   ),
                   Text(
                     '#${sale.id}',
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.muted),
+                    style: mono(fontSize: 11, color: AppColors.mutedLight),
                   ),
                 ],
               ),

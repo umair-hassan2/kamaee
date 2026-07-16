@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/customer.dart';
 import '../models/sale.dart';
 import '../models/transaction.dart';
@@ -31,7 +32,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _paidController = TextEditingController();
   bool _isLoading = false;
 
-  // Customer picker state
   List<Customer> _customers = [];
   Customer? _selectedCustomer;
   bool _customersLoaded = false;
@@ -83,13 +83,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _pickCustomer() async {
     await _loadCustomers();
     if (!mounted) return;
-
     final picked = await showModalBottomSheet<Customer>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => _CustomerPickerSheet(
         customers: _customers,
@@ -97,9 +97,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         onNewCustomer: _createCustomer,
       ),
     );
-    if (picked != null) {
-      setState(() => _selectedCustomer = picked);
-    }
+    if (picked != null) setState(() => _selectedCustomer = picked);
   }
 
   Future<Customer?> _createCustomer() async {
@@ -110,7 +108,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('New Customer'),
+        title: Text('New Customer',
+            style: bricolage(fontSize: 18, fontWeight: FontWeight.w700)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -118,18 +117,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               controller: nameCtrl,
               autofocus: true,
               textCapitalization: TextCapitalization.words,
+              style: instrument(fontSize: 15),
               decoration: const InputDecoration(
                 labelText: 'Name *',
-                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
+              style: instrument(fontSize: 15),
               decoration: const InputDecoration(
                 labelText: 'Phone (optional)',
-                border: OutlineInputBorder(),
               ),
             ),
           ],
@@ -163,7 +162,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
 
     if (created != null) {
-      // Refresh customer list
       final customers = await _khataService.getCustomers();
       if (mounted) setState(() => _customers = customers);
     }
@@ -195,7 +193,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('StateError: ', '')),
-          backgroundColor: AppColors.danger,
+          backgroundColor: AppColors.red,
         ),
       );
     } finally {
@@ -206,276 +204,334 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Checkout')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Order summary
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade200),
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Symbols.arrow_back,
+                        size: 24, color: AppColors.ink),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Checkout',
+                      style: bricolage(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Order Summary',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.muted,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                ...widget.items.map(
-                  (line) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  // ── Order summary ────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.paperDark,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.borderDark),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            '${line.itemName} × ${line.quantity}',
-                            style: const TextStyle(fontSize: 14),
+                        Text(
+                          'ORDER SUMMARY',
+                          style: instrument(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted,
+                            letterSpacing: 0.12,
                           ),
                         ),
-                        Text(
-                          formatPkr(line.revenue),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        const SizedBox(height: 12),
+                        ...widget.items.map(
+                          (line) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${line.itemName} × ${line.quantity}',
+                                    style: instrument(
+                                        fontSize: 14, color: AppColors.secondary),
+                                  ),
+                                ),
+                                Text(
+                                  formatPkr(line.revenue),
+                                  style: mono(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.ink),
+                                ),
+                              ],
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(color: AppColors.borderDark, height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('Total',
+                                  style: instrument(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.ink)),
+                            ),
+                            Text(
+                              formatPkr(widget.total),
+                              style: mono(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Total',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
+                  const SizedBox(height: 22),
+
+                  Text(
+                    'PAYMENT METHOD',
+                    style: instrument(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.muted,
+                      letterSpacing: 0.12,
                     ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _PaymentOption(
+                    label: 'Cash',
+                    subtitle: 'Full amount paid now',
+                    icon: Symbols.payments,
+                    iconBg: _method == PaymentMethod.cash
+                        ? AppColors.green
+                        : AppColors.greenLight,
+                    iconColor: _method == PaymentMethod.cash
+                        ? Colors.white
+                        : AppColors.green,
+                    selected: _method == PaymentMethod.cash,
+                    onTap: () => _onMethodChanged(PaymentMethod.cash),
+                  ),
+                  const SizedBox(height: 10),
+                  _PaymentOption(
+                    label: 'Khata (Udhaar)',
+                    subtitle: 'Full amount on credit · needs customer',
+                    icon: Symbols.account_balance_wallet,
+                    iconBg: _method == PaymentMethod.khata
+                        ? AppColors.amber
+                        : AppColors.amberLight,
+                    iconColor: _method == PaymentMethod.khata
+                        ? Colors.white
+                        : AppColors.amber,
+                    selected: _method == PaymentMethod.khata,
+                    onTap: () => _onMethodChanged(PaymentMethod.khata),
+                  ),
+                  const SizedBox(height: 10),
+                  _PaymentOption(
+                    label: 'Partial Payment',
+                    subtitle: 'Some cash now, rest on credit',
+                    icon: Symbols.call_split,
+                    iconBg: _method == PaymentMethod.partial
+                        ? AppColors.teal
+                        : AppColors.tealLight,
+                    iconColor: _method == PaymentMethod.partial
+                        ? Colors.white
+                        : AppColors.teal,
+                    selected: _method == PaymentMethod.partial,
+                    onTap: () => _onMethodChanged(PaymentMethod.partial),
+                  ),
+
+                  if (_needsCustomer) ...[
+                    const SizedBox(height: 22),
                     Text(
-                      formatPkr(widget.total),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.primaryDark,
+                      'CUSTOMER',
+                      style: instrument(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.muted,
+                        letterSpacing: 0.12,
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          Text(
-            'Payment Method',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 12),
-
-          _PaymentOption(
-            label: 'Cash',
-            subtitle: 'Full amount paid now',
-            icon: Icons.payments_outlined,
-            color: AppColors.sell,
-            selected: _method == PaymentMethod.cash,
-            onTap: () => _onMethodChanged(PaymentMethod.cash),
-          ),
-          const SizedBox(height: 10),
-          _PaymentOption(
-            label: 'Khata (Udhaar)',
-            subtitle: 'Full amount on credit — requires customer',
-            icon: Icons.account_balance_wallet_outlined,
-            color: AppColors.warning,
-            selected: _method == PaymentMethod.khata,
-            onTap: () => _onMethodChanged(PaymentMethod.khata),
-          ),
-          const SizedBox(height: 10),
-          _PaymentOption(
-            label: 'Partial Payment',
-            subtitle: 'Some cash now, rest on credit — requires customer',
-            icon: Icons.call_split_outlined,
-            color: AppColors.accent,
-            selected: _method == PaymentMethod.partial,
-            onTap: () => _onMethodChanged(PaymentMethod.partial),
-          ),
-
-          // Customer picker (shown for khata & partial)
-          if (_needsCustomer) ...[
-            const SizedBox(height: 20),
-            Text(
-              'Customer',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pickCustomer,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _selectedCustomer != null
-                        ? AppColors.primary
-                        : Colors.grey.shade300,
-                    width: _selectedCustomer != null ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.person_outline,
-                          color: AppColors.primary, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _selectedCustomer == null
-                          ? const Text(
-                              'Select customer…',
-                              style: TextStyle(color: AppColors.muted),
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedCustomer!.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                if (_selectedCustomer!.phone.isNotEmpty)
-                                  Text(
-                                    _selectedCustomer!.phone,
-                                    style: const TextStyle(
-                                        fontSize: 12, color: AppColors.muted),
-                                  ),
-                              ],
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _pickCustomer,
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: _selectedCustomer != null
+                                ? AppColors.green
+                                : AppColors.border,
+                            width: _selectedCustomer != null ? 2 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: AppColors.greenLight,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Symbols.person,
+                                  color: AppColors.green, size: 20),
                             ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey.shade400,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-
-          // Partial amount field
-          if (_method == PaymentMethod.partial) ...[
-            const SizedBox(height: 20),
-            Text(
-              'Amount Paid Now',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _paidController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: '0.00',
-                prefixText: 'PKR ',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            if (_paidController.text.isNotEmpty && _khata > 0) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.warning.withValues(alpha: 0.25)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline,
-                        color: AppColors.warning, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "${formatPkr(_khata)} will be added to ${_selectedCustomer?.name ?? 'customer'}'s khata",
-                        style: const TextStyle(
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w600,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _selectedCustomer == null
+                                  ? Text('Select customer…',
+                                      style: instrument(
+                                          fontSize: 14,
+                                          color: AppColors.muted))
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(_selectedCustomer!.name,
+                                            style: instrument(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600)),
+                                        if (_selectedCustomer!.phone.isNotEmpty)
+                                          Text(_selectedCustomer!.phone,
+                                              style: instrument(
+                                                  fontSize: 12,
+                                                  color: AppColors.muted)),
+                                      ],
+                                    ),
+                            ),
+                            const Icon(Symbols.chevron_right,
+                                color: AppColors.mutedLight),
+                          ],
                         ),
                       ),
                     ),
                   ],
+
+                  if (_method == PaymentMethod.partial) ...[
+                    const SizedBox(height: 22),
+                    Text(
+                      'AMOUNT PAID NOW',
+                      style: instrument(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.muted,
+                        letterSpacing: 0.12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _paidController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}')),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                      style: mono(fontSize: 15, fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        hintText: '0.00',
+                        prefixText: 'PKR ',
+                        prefixStyle: instrument(fontSize: 14, color: AppColors.muted),
+                      ),
+                    ),
+                    if (_paidController.text.isNotEmpty && _khata > 0) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.amberLight,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.amber.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Symbols.info,
+                                color: AppColors.amber, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "${formatPkr(_khata)} will be added to ${_selectedCustomer?.name ?? 'customer'}'s khata",
+                                style: instrument(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.amberDark),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+
+            // ── Confirm button ────────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                  20, 14, 20, MediaQuery.of(context).padding.bottom + 22),
+              child: GestureDetector(
+                onTap: (_isLoading || !_canConfirm) ? null : _confirm,
+                child: AnimatedOpacity(
+                  opacity: _canConfirm ? 1.0 : 0.5,
+                  duration: const Duration(milliseconds: 150),
+                  child: Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.green,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : Text(
+                              _method == PaymentMethod.cash
+                                  ? 'Confirm Sale · ${formatPkr(widget.total)}'
+                                  : _method == PaymentMethod.khata
+                                      ? 'Record on Khata · ${formatPkr(widget.total)}'
+                                      : 'Confirm · ${formatPkr(_paid)} now + ${formatPkr(_khata)} khata',
+                              style: instrument(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white),
+                            ),
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ],
-
-          const SizedBox(height: 32),
-
-          FilledButton(
-            onPressed: (_isLoading || !_canConfirm) ? null : _confirm,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.sell,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : Text(
-                    _method == PaymentMethod.cash
-                        ? 'Confirm Sale · ${formatPkr(widget.total)}'
-                        : _method == PaymentMethod.khata
-                            ? 'Record on Khata · ${formatPkr(widget.total)}'
-                            : 'Confirm · ${formatPkr(_paid)} now + ${formatPkr(_khata)} khata',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-          ),
-
-          if (_needsCustomer && _selectedCustomer == null) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Select a customer to continue',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
+
+// ── Customer picker sheet ─────────────────────────────────────────────────────
 
 class _CustomerPickerSheet extends StatefulWidget {
   final List<Customer> customers;
@@ -508,14 +564,13 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 12),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -524,11 +579,10 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    'Select Customer',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                Expanded(
+                  child: Text('Select Customer',
+                      style: bricolage(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
                 ),
                 TextButton.icon(
                   onPressed: () async {
@@ -537,7 +591,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                       Navigator.pop(context, created);
                     }
                   },
-                  icon: const Icon(Icons.add, size: 18),
+                  icon: const Icon(Symbols.add, size: 18),
                   label: const Text('New'),
                 ),
               ],
@@ -548,12 +602,10 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
             child: TextField(
               autofocus: true,
               onChanged: (v) => setState(() => _query = v),
+              style: instrument(fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search…',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                prefixIcon: const Icon(Symbols.search, size: 20),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
@@ -563,12 +615,11 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               maxHeight: MediaQuery.of(context).size.height * 0.4,
             ),
             child: _filtered.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'No customers found',
-                      style: TextStyle(color: AppColors.muted),
-                    ),
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text('No customers found',
+                        style: instrument(
+                            fontSize: 14, color: AppColors.muted)),
                   )
                 : ListView.builder(
                     shrinkWrap: true,
@@ -576,24 +627,32 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                     itemBuilder: (_, i) {
                       final c = _filtered[i];
                       final isSelected = c.id == widget.selected?.id;
+                      final initial = c.name.isNotEmpty
+                          ? c.name[0].toUpperCase()
+                          : '?';
                       return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.12),
-                          child: Text(
-                            c.name[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.amberLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text(initial,
+                                style: bricolage(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.amber)),
                           ),
                         ),
                         title: Text(c.name,
-                            style: const TextStyle(fontWeight: FontWeight.w500)),
+                            style: instrument(
+                                fontSize: 15, fontWeight: FontWeight.w500)),
                         subtitle: c.phone.isNotEmpty ? Text(c.phone) : null,
                         trailing: isSelected
-                            ? const Icon(Icons.check_circle,
-                                color: AppColors.primary)
+                            ? const Icon(Symbols.check_circle,
+                                color: AppColors.green, fill: 1)
                             : null,
                         onTap: () => Navigator.pop(context, c),
                       );
@@ -607,11 +666,14 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
   }
 }
 
+// ── Payment option ────────────────────────────────────────────────────────────
+
 class _PaymentOption extends StatelessWidget {
   final String label;
   final String subtitle;
   final IconData icon;
-  final Color color;
+  final Color iconBg;
+  final Color iconColor;
   final bool selected;
   final VoidCallback onTap;
 
@@ -619,7 +681,8 @@ class _PaymentOption extends StatelessWidget {
     required this.label,
     required this.subtitle,
     required this.icon,
-    required this.color,
+    required this.iconBg,
+    required this.iconColor,
     required this.selected,
     required this.onTap,
   });
@@ -632,45 +695,47 @@ class _PaymentOption extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          color: selected
+              ? (iconColor == Colors.white
+                  ? iconBg.withValues(alpha: 0.08)
+                  : iconBg.withValues(alpha: 0.12))
+              : AppColors.card,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? color : Colors.grey.shade200,
+            color: selected ? iconBg : AppColors.border,
             width: selected ? 2 : 1,
           ),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 13),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: selected ? color : null,
-                      )),
+                      style: instrument(
+                          fontSize: 15, fontWeight: FontWeight.w700)),
                   Text(subtitle,
-                      style: const TextStyle(
+                      style: instrument(
                           fontSize: 12, color: AppColors.muted)),
                 ],
               ),
             ),
-            if (selected)
-              Icon(Icons.check_circle, color: color, size: 22)
-            else
-              Icon(Icons.circle_outlined,
-                  color: Colors.grey.shade300, size: 22),
+            selected
+                ? const Icon(Symbols.check_circle,
+                    color: AppColors.green, fill: 1, size: 24)
+                : const Icon(Symbols.radio_button_unchecked,
+                    color: AppColors.mutedLight, size: 22),
           ],
         ),
       ),
