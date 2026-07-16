@@ -9,7 +9,9 @@ import '../widgets/item_action_sheet.dart';
 import '../widgets/item_photo_widget.dart';
 
 class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key});
+  final int refreshKey;
+
+  const InventoryScreen({super.key, this.refreshKey = 0});
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
@@ -29,6 +31,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _loadItems();
+  }
+
+  @override
+  void didUpdateWidget(InventoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshKey != widget.refreshKey) {
+      _loadItems();
+    }
   }
 
   @override
@@ -80,6 +90,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     await showItemActionSheet(
       context: context,
       item: item,
+      showAddToCart: true,
       onDone: () {
         Navigator.pop(context);
         _loadItems();

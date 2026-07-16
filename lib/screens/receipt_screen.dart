@@ -132,7 +132,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     ),
                   const SizedBox(width: 16),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(true),
+                    onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
                     child: Text('Done',
                         style: instrument(
                             fontSize: 15,
@@ -340,7 +340,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
                     // ── Back to home ──────────────────────────────────────
                     GestureDetector(
-                      onTap: () => Navigator.of(context).pop(true),
+                      onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
                       child: Container(
                         height: 50,
                         decoration: BoxDecoration(

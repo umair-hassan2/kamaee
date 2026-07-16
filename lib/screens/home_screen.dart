@@ -13,7 +13,9 @@ import 'sales_history_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onInventoryTap;
+
+  const HomeScreen({super.key, this.onInventoryTap});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -338,7 +340,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _InventoryStrip(itemCount: _itemCount),
+                  _InventoryStrip(
+                    itemCount: _itemCount,
+                    onTap: widget.onInventoryTap,
+                  ),
                 ]),
               ),
             ),
@@ -441,14 +446,24 @@ class _ActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 0.92,
-      children: items.map((item) => _ActionCard(item: item)).toList(),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: _ActionCard(item: items[0])),
+            const SizedBox(width: 12),
+            Expanded(child: _ActionCard(item: items[1])),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _ActionCard(item: items[2])),
+            const SizedBox(width: 12),
+            Expanded(child: _ActionCard(item: items[3])),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -465,7 +480,9 @@ class _ActionCard extends StatelessWidget {
       child: InkWell(
         onTap: item.onTap,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
+        child: SizedBox(
+          height: 118,
+          child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
@@ -524,6 +541,7 @@ class _ActionCard extends StatelessWidget {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -534,39 +552,47 @@ class _ActionCard extends StatelessWidget {
 
 class _InventoryStrip extends StatelessWidget {
   final int itemCount;
-  const _InventoryStrip({required this.itemCount});
+  final VoidCallback? onTap;
+  const _InventoryStrip({required this.itemCount, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: AppColors.card,
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Symbols.inventory_2,
-                size: 18, color: AppColors.blue),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              '$itemCount products in inventory',
-              style: instrument(fontSize: 13, color: AppColors.muted),
-            ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.blueLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Symbols.inventory_2,
+                    size: 18, color: AppColors.blue),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$itemCount products in inventory',
+                  style: instrument(fontSize: 13, color: AppColors.muted),
+                ),
+              ),
+              const Icon(Symbols.chevron_right,
+                  size: 18, color: AppColors.mutedLight),
+            ],
           ),
-          const Icon(Symbols.chevron_right,
-              size: 18, color: AppColors.mutedLight),
-        ],
+        ),
       ),
     );
   }

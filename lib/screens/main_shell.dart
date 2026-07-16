@@ -17,13 +17,20 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  int _inventoryRefreshKey = 0;
 
-  static const _tabs = [
-    HomeScreen(),
-    InventoryScreen(),
-    KhataScreen(),
-    MoreScreen(),
-  ];
+  void _onTabTap(int i) {
+    if (i == 1 && _selectedIndex != 1) {
+      // Switching TO inventory — increment key so it reloads
+      _inventoryRefreshKey++;
+    }
+    setState(() => _selectedIndex = i);
+  }
+
+  void _switchToInventory() {
+    if (_selectedIndex != 1) _inventoryRefreshKey++;
+    setState(() => _selectedIndex = 1);
+  }
 
   Future<void> _openCart() async {
     await Navigator.push(
@@ -35,11 +42,18 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final tabs = [
+      HomeScreen(onInventoryTap: _switchToInventory),
+      InventoryScreen(refreshKey: _inventoryRefreshKey),
+      const KhataScreen(),
+      const MoreScreen(),
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: IndexedStack(
         index: _selectedIndex,
-        children: _tabs,
+        children: tabs,
       ),
       floatingActionButton: ValueListenableBuilder<int>(
         valueListenable: CartService().cartCount,
@@ -63,7 +77,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: _FloatingNavBar(
         selectedIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: _onTabTap,
       ),
     );
   }
@@ -174,10 +188,7 @@ class _NavItem extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(icon,
-                          fill: 1,
-                          size: 22,
-                          color: Colors.white),
+                      Icon(icon, fill: 1, size: 22, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
                         label,
@@ -194,8 +205,7 @@ class _NavItem extends StatelessWidget {
                   key: ValueKey('unsel_$index'),
                   height: 46,
                   child: Center(
-                    child: Icon(icon,
-                        size: 23, color: AppColors.inkMuted),
+                    child: Icon(icon, size: 23, color: AppColors.inkMuted),
                   ),
                 ),
         ),
