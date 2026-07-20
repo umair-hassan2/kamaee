@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../database_helper.dart';
 import '../models/item.dart';
@@ -79,32 +80,22 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       );
 
       await _cameraController!.initialize();
-
       if (!mounted) return;
 
-      setState(() {
-        _isCameraInitialized = true;
-      });
-
+      setState(() => _isCameraInitialized = true);
       await _cameraController!.startImageStream(_processCameraImage);
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to initialize camera: $e';
-      });
+      setState(() => _errorMessage = 'Failed to initialize camera: $e');
     }
   }
 
   void _processCameraImage(CameraImage image) {
     if (_isProcessing) return;
-
     final now = DateTime.now();
     if (_lastScanTime != null &&
-        now.difference(_lastScanTime!) < _scanInterval) {
-      return;
-    }
+        now.difference(_lastScanTime!) < _scanInterval) return;
     _lastScanTime = now;
     _isProcessing = true;
-
     _scanFrame(image);
   }
 
@@ -140,10 +131,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       await _handleBarcodeDetected(barcodeValue);
     } catch (e) {
       _isProcessing = false;
-      assert(() {
-        debugPrint('Scan frame error: $e');
-        return true;
-      }());
     }
   }
 
@@ -162,9 +149,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           builder: (_) => AddItemScreen(barcode: barcodeValue),
         ),
       );
-      if (mounted) {
-        Navigator.pop(context, result);
-      }
+      if (mounted) Navigator.pop(context, result);
     } else {
       await _showItemActions(item);
     }
@@ -197,8 +182,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       context: context,
       isDismissible: false,
       enableDrag: false,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -212,34 +198,39 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Icon(Icons.check_circle, color: AppColors.sell, size: 48),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: AppColors.greenLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Symbols.check,
+                    color: AppColors.green, size: 30),
+              ),
               const SizedBox(height: 12),
-              Text(
-                'Done!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'What would you like to do next?',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.muted, fontSize: 14),
-              ),
+              Text('Done!',
+                  textAlign: TextAlign.center,
+                  style: bricolage(fontSize: 20, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text('What would you like to do next?',
+                  textAlign: TextAlign.center,
+                  style: instrument(fontSize: 14, color: AppColors.muted)),
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
                   _resumeScanning();
                 },
-                icon: Icon(_isQrMode ? Icons.qr_code_2 : Icons.barcode_reader),
+                icon: Icon(_isQrMode
+                    ? Symbols.qr_code_2
+                    : Symbols.barcode_scanner),
                 label: const Text('Scan Next Item'),
               ),
               if (cartCount > 0) ...[
@@ -253,11 +244,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     );
                     if (mounted) Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.shopping_cart_outlined),
+                  icon: const Icon(Symbols.shopping_cart),
                   label: Text('View Cart ($cartCount items)'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                  ),
                 ),
               ],
               const SizedBox(height: 10),
@@ -266,7 +254,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   Navigator.pop(ctx);
                   Navigator.pop(context);
                 },
-                icon: const Icon(Icons.home_outlined),
+                icon: const Icon(Symbols.home),
                 label: const Text('Finish'),
               ),
             ],
@@ -302,59 +290,103 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isQrMode ? 'Scan QR Code' : 'Scan Barcode'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        actions: [
-          ValueListenableBuilder<int>(
-            valueListenable: CartService().cartCount,
-            builder: (_, count, __) {
-              if (count == 0) return const SizedBox.shrink();
-              return Stack(
+      backgroundColor: const Color(0xFF0B0B0C),
+      body: Stack(
+        children: [
+          // Camera / body
+          _buildBody(),
+
+          // Header overlay
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding:
+                  EdgeInsets.fromLTRB(16, topPadding + 6, 16, 12),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black87, Colors.transparent],
+                ),
+              ),
+              child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.shopping_cart_outlined),
-                    onPressed: () async {
-                      if (_cameraController?.value.isStreamingImages ?? false) {
-                        await _cameraController!.stopImageStream();
-                      }
-                      if (!mounted) return;
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()),
-                      );
-                      if (mounted) Navigator.pop(context);
-                    },
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Symbols.arrow_back,
+                        size: 24, color: Colors.white),
                   ),
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.sell,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$count',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _isQrMode ? 'Scan QR Code' : 'Scan Barcode',
+                      style: bricolage(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white),
                     ),
                   ),
+                  // Cart badge
+                  ValueListenableBuilder<int>(
+                    valueListenable: CartService().cartCount,
+                    builder: (_, count, __) {
+                      if (count == 0) return const SizedBox.shrink();
+                      return GestureDetector(
+                        onTap: () async {
+                          if (_cameraController?.value.isStreamingImages ??
+                              false) {
+                            await _cameraController!.stopImageStream();
+                          }
+                          if (!mounted) return;
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const CartScreen()),
+                          );
+                          if (mounted) Navigator.pop(context);
+                        },
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Icon(Symbols.shopping_cart,
+                                size: 24, color: Colors.white),
+                            Positioned(
+                              top: -6,
+                              right: -8,
+                              child: Container(
+                                width: 18,
+                                height: 18,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$count',
+                                    style: mono(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ],
-              );
-            },
+              ),
+            ),
           ),
         ],
       ),
-      backgroundColor: Colors.black,
-      body: _buildBody(),
     );
   }
 
@@ -362,16 +394,16 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     if (_errorMessage != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 64),
+              const Icon(Symbols.error, color: AppColors.red, size: 64),
               const SizedBox(height: 16),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: instrument(fontSize: 16, color: Colors.white),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -404,68 +436,124 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Spacer(),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 40),
-          width: _isQrMode ? 260 : null,
+        SizedBox(
+          width: 290,
           height: _isQrMode ? 260 : 200,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.white, width: 2),
-            borderRadius: BorderRadius.circular(_isQrMode ? 16 : 12),
-          ),
           child: Stack(
             children: [
-              _buildCorner(top: true, left: true),
-              _buildCorner(top: true, left: false),
-              _buildCorner(top: false, left: true),
-              _buildCorner(top: false, left: false),
+              // Corner brackets
+              _Corner(top: true, left: true),
+              _Corner(top: true, left: false),
+              _Corner(top: false, left: true),
+              _Corner(top: false, left: false),
+              // Scan line
+              Center(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.greenFrame,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.greenFrame.withValues(alpha: 0.7),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 26),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           decoration: BoxDecoration(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(8),
+            color: Colors.black.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             _isQrMode
                 ? 'Align QR code within the frame to scan'
                 : 'Align barcode within the frame to scan',
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: instrument(fontSize: 13.5, color: const Color(0xFFEFEDEA)),
           ),
         ),
         const Spacer(),
       ],
     );
   }
+}
 
-  Widget _buildCorner({required bool top, required bool left}) {
+// ── Corner bracket ────────────────────────────────────────────────────────────
+
+class _Corner extends StatelessWidget {
+  final bool top;
+  final bool left;
+
+  const _Corner({required this.top, required this.left});
+
+  @override
+  Widget build(BuildContext context) {
     return Positioned(
       top: top ? 0 : null,
       bottom: top ? null : 0,
       left: left ? 0 : null,
       right: left ? null : 0,
-      child: Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          border: Border(
-            top: top
-                ? const BorderSide(color: Colors.green, width: 4)
-                : BorderSide.none,
-            bottom: top
-                ? BorderSide.none
-                : const BorderSide(color: Colors.green, width: 4),
-            left: left
-                ? const BorderSide(color: Colors.green, width: 4)
-                : BorderSide.none,
-            right: left
-                ? BorderSide.none
-                : const BorderSide(color: Colors.green, width: 4),
-          ),
+      child: SizedBox(
+        width: 34,
+        height: 34,
+        child: CustomPaint(
+          painter: _CornerPainter(top: top, left: left),
         ),
       ),
     );
   }
+}
+
+class _CornerPainter extends CustomPainter {
+  final bool top;
+  final bool left;
+
+  const _CornerPainter({required this.top, required this.left});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.greenFrame
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.square
+      ..style = PaintingStyle.stroke;
+
+    final r = const Radius.circular(4);
+    final path = Path();
+
+    if (top && left) {
+      path.moveTo(0, size.height);
+      path.lineTo(0, r.x);
+      path.arcToPoint(Offset(r.x, 0), radius: r);
+      path.lineTo(size.width, 0);
+    } else if (top && !left) {
+      path.moveTo(0, 0);
+      path.lineTo(size.width - r.x, 0);
+      path.arcToPoint(Offset(size.width, r.y), radius: r);
+      path.lineTo(size.width, size.height);
+    } else if (!top && left) {
+      path.moveTo(0, 0);
+      path.lineTo(0, size.height - r.y);
+      path.arcToPoint(Offset(r.x, size.height), radius: r);
+      path.lineTo(size.width, size.height);
+    } else {
+      path.moveTo(size.width, 0);
+      path.lineTo(size.width, size.height - r.y);
+      path.arcToPoint(Offset(size.width - r.x, size.height), radius: r);
+      path.lineTo(0, size.height);
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

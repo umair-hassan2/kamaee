@@ -8,6 +8,7 @@ class Sale {
   final double totalAmount;
   final double paidAmount;
   final double khataAmount;
+  final double discountAmount;
   final PaymentMethod paymentMethod;
   final SaleStatus status;
   final int timestamp;
@@ -18,6 +19,7 @@ class Sale {
     required this.totalAmount,
     required this.paidAmount,
     required this.khataAmount,
+    this.discountAmount = 0,
     required this.paymentMethod,
     required this.status,
     required this.timestamp,
@@ -29,6 +31,7 @@ class Sale {
     double? totalAmount,
     double? paidAmount,
     double? khataAmount,
+    double? discountAmount,
     PaymentMethod? paymentMethod,
     SaleStatus? status,
     int? timestamp,
@@ -39,6 +42,7 @@ class Sale {
       totalAmount: totalAmount ?? this.totalAmount,
       paidAmount: paidAmount ?? this.paidAmount,
       khataAmount: khataAmount ?? this.khataAmount,
+      discountAmount: discountAmount ?? this.discountAmount,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
@@ -51,6 +55,7 @@ class Sale {
         'total_amount': totalAmount,
         'paid_amount': paidAmount,
         'khata_amount': khataAmount,
+        'discount_amount': discountAmount,
         'payment_method': paymentMethod.name,
         'status': status.name,
         'timestamp': timestamp,
@@ -62,6 +67,7 @@ class Sale {
         totalAmount: (map['total_amount'] as num).toDouble(),
         paidAmount: (map['paid_amount'] as num).toDouble(),
         khataAmount: (map['khata_amount'] as num).toDouble(),
+        discountAmount: (map['discount_amount'] as num? ?? 0).toDouble(),
         paymentMethod: PaymentMethod.values.byName(map['payment_method'] as String),
         status: SaleStatus.values.byName(map['status'] as String),
         timestamp: map['timestamp'] as int,

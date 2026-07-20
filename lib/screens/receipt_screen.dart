@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/sale.dart';
@@ -28,12 +29,17 @@ class ReceiptScreen extends StatefulWidget {
 class _ReceiptScreenState extends State<ReceiptScreen> {
   bool _sharing = false;
 
-  String get _paymentLabel {
-    return switch (widget.sale.paymentMethod) {
-      PaymentMethod.cash => 'Cash',
-      PaymentMethod.khata => 'Khata (Udhaar)',
-      PaymentMethod.partial => 'Partial Payment',
-    };
+  String get _paymentLabel => switch (widget.sale.paymentMethod) {
+        PaymentMethod.cash => 'Cash',
+        PaymentMethod.khata => 'Khata (Udhaar)',
+        PaymentMethod.partial => 'Partial Payment',
+      };
+
+  String _timeString(DateTime dt) {
+    final h = dt.hour > 12 ? dt.hour - 12 : dt.hour == 0 ? 12 : dt.hour;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$h:$m $period';
   }
 
   Future<void> _shareOnWhatsApp() async {
@@ -49,7 +55,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/receipt_${widget.sale.id}.pdf');
       await file.writeAsBytes(pdfBytes);
-
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/pdf')],
         text: widget.customerName != null
@@ -61,7 +66,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not share: $e'),
-            backgroundColor: AppColors.danger,
+            backgroundColor: AppColors.red,
           ),
         );
       }
@@ -70,215 +75,312 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
   }
 
+  ({Color bg, Color border, Color icon, IconData iconData}) get _methodStyle =>
+      switch (widget.sale.paymentMethod) {
+        PaymentMethod.cash => (
+            bg: AppColors.greenLight,
+            border: const Color(0xFFC7E4D5),
+            icon: AppColors.green,
+            iconData: Symbols.payments,
+          ),
+        PaymentMethod.khata => (
+            bg: AppColors.amberLight,
+            border: const Color(0xFFEAD6AE),
+            icon: AppColors.amber,
+            iconData: Symbols.account_balance_wallet,
+          ),
+        PaymentMethod.partial => (
+            bg: AppColors.tealLight,
+            border: const Color(0xFFC3E0E3),
+            icon: AppColors.teal,
+            iconData: Symbols.call_split,
+          ),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final saleTime = DateTime.fromMillisecondsSinceEpoch(widget.sale.timestamp);
+    final saleTime =
+        DateTime.fromMillisecondsSinceEpoch(widget.sale.timestamp);
+    final ms = _methodStyle;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Receipt'),
-        automaticallyImplyLeading: false,
-        actions: [
-          if (_sharing)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              onPressed: _shareOnWhatsApp,
-              icon: const Icon(Icons.share_outlined),
-              tooltip: 'Share via WhatsApp',
-            ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(true);
-            },
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
         child: Column(
           children: [
-            // Success header
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              alignment: Alignment.center,
-              child: Column(
+            // ── Header ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
+              child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.sell.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check, color: AppColors.sell, size: 40),
+                  Expanded(
+                    child: Text('Receipt',
+                        style: bricolage(
+                            fontSize: 20, fontWeight: FontWeight.w700)),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sale Recorded',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (widget.customerName != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        widget.customerName!,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
+                  if (_sharing)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: _shareOnWhatsApp,
+                      child: const Icon(Symbols.ios_share,
+                          size: 23, color: AppColors.muted),
                     ),
-                  Text(
-                    '${_timeString(saleTime)} · $_paymentLabel',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 14),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                    child: Text('Done',
+                        style: instrument(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.green)),
                   ),
                 ],
               ),
             ),
 
-            // Line items
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Items',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...widget.items.map(
-                    (line) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    // ── Success header ────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Text(
-                              line.itemName,
-                              style: const TextStyle(fontSize: 14),
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: const BoxDecoration(
+                              color: AppColors.greenLight,
+                              shape: BoxShape.circle,
                             ),
+                            child: const Icon(Symbols.check,
+                                color: AppColors.green, size: 40),
                           ),
+                          const SizedBox(height: 14),
+                          Text('Sale Recorded',
+                              style: bricolage(
+                                  fontSize: 23,
+                                  fontWeight: FontWeight.w700)),
+                          if (widget.customerName != null) ...[
+                            const SizedBox(height: 4),
+                            Text(widget.customerName!,
+                                style: instrument(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                          const SizedBox(height: 2),
                           Text(
-                            '${line.quantity} × ${formatPkr(line.unitPrice)}',
-                            style: const TextStyle(
-                                fontSize: 13, color: AppColors.muted),
-                          ),
-                          const SizedBox(width: 16),
-                          SizedBox(
-                            width: 80,
-                            child: Text(
-                              formatPkr(line.revenue),
-                              textAlign: TextAlign.end,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                            '${_timeString(saleTime)} · $_paymentLabel',
+                            style: mono(
+                                fontSize: 12.5, color: AppColors.muted),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const Divider(height: 24),
-                  _ReceiptRow(
-                    label: 'Total',
-                    value: formatPkr(widget.sale.totalAmount),
-                    bold: true,
-                  ),
-                  if (widget.sale.paidAmount > 0 &&
-                      widget.sale.paymentMethod != PaymentMethod.cash) ...[
-                    const SizedBox(height: 6),
-                    _ReceiptRow(
-                      label: 'Paid now',
-                      value: formatPkr(widget.sale.paidAmount),
-                      color: AppColors.sell,
+
+                    // ── Items ─────────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ITEMS',
+                            style: instrument(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.muted,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ...widget.items.map((line) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4.5),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(line.itemName,
+                                          style: instrument(fontSize: 14)),
+                                    ),
+                                    Text(
+                                      '${line.quantity} × ${formatPkr(line.unitPrice)}',
+                                      style: mono(
+                                          fontSize: 12.5,
+                                          color: AppColors.muted),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    SizedBox(
+                                      width: 70,
+                                      child: Text(
+                                        formatPkr(line.revenue),
+                                        textAlign: TextAlign.right,
+                                        style: mono(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                          const SizedBox(height: 12),
+                          const Divider(color: AppColors.border, height: 1),
+                          const SizedBox(height: 12),
+                          if (widget.sale.discountAmount > 0) ...[
+                            _ReceiptSplitRow(
+                              label: 'Subtotal',
+                              value: formatPkr(widget.sale.totalAmount +
+                                  widget.sale.discountAmount),
+                              color: AppColors.muted,
+                            ),
+                            const SizedBox(height: 6),
+                            _ReceiptSplitRow(
+                              label: 'Discount',
+                              value: '− ${formatPkr(widget.sale.discountAmount)}',
+                              color: AppColors.red,
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text('Total',
+                                    style: instrument(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              Text(
+                                formatPkr(widget.sale.totalAmount),
+                                style: mono(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                          if (widget.sale.paidAmount > 0 &&
+                              widget.sale.paymentMethod !=
+                                  PaymentMethod.cash) ...[
+                            const SizedBox(height: 7),
+                            _ReceiptSplitRow(
+                              label: 'Paid now',
+                              value: formatPkr(widget.sale.paidAmount),
+                              color: AppColors.greenDark,
+                            ),
+                          ],
+                          if (widget.sale.khataAmount > 0) ...[
+                            const SizedBox(height: 5),
+                            _ReceiptSplitRow(
+                              label: 'On Khata',
+                              value: formatPkr(widget.sale.khataAmount),
+                              color: AppColors.amber,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Payment method badge ──────────────────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: ms.bg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: ms.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(ms.iconData, color: ms.icon, size: 20),
+                          const SizedBox(width: 10),
+                          Text(_paymentLabel,
+                              style: instrument(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: ms.icon)),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Share WhatsApp ────────────────────────────────────
+                    GestureDetector(
+                      onTap: _sharing ? null : _shareOnWhatsApp,
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: const Color(0xFF4FB36A), width: 1.5),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _sharing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Symbols.share,
+                                    size: 20,
+                                    color: Color(0xFF1E9E48)),
+                            const SizedBox(width: 9),
+                            Text('Share Bill via WhatsApp',
+                                style: instrument(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1E7A3C))),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Back to home ──────────────────────────────────────
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.ink,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Symbols.home,
+                                size: 20, color: Colors.white),
+                            const SizedBox(width: 9),
+                            Text('Back to Home',
+                                style: instrument(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
                   ],
-                  if (widget.sale.khataAmount > 0) ...[
-                    const SizedBox(height: 6),
-                    _ReceiptRow(
-                      label: 'On Khata',
-                      value: formatPkr(widget.sale.khataAmount),
-                      color: AppColors.warning,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Payment method badge
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _methodColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _methodColor.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                children: [
-                  Icon(_methodIcon, color: _methodColor, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    _paymentLabel,
-                    style: TextStyle(
-                      color: _methodColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Share button
-            OutlinedButton.icon(
-              onPressed: _sharing ? null : _shareOnWhatsApp,
-              icon: _sharing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.share_outlined),
-              label: const Text('Share Bill via WhatsApp'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-                foregroundColor: AppColors.primary,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            FilledButton.icon(
-              onPressed: () => Navigator.of(context).pop(true),
-              icon: const Icon(Icons.home_outlined),
-              label: const Text('Back to Home'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
+                ),
               ),
             ),
           ],
@@ -286,51 +388,30 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       ),
     );
   }
-
-  Color get _methodColor => switch (widget.sale.paymentMethod) {
-        PaymentMethod.cash => AppColors.sell,
-        PaymentMethod.khata => AppColors.warning,
-        PaymentMethod.partial => AppColors.accent,
-      };
-
-  IconData get _methodIcon => switch (widget.sale.paymentMethod) {
-        PaymentMethod.cash => Icons.payments_outlined,
-        PaymentMethod.khata => Icons.account_balance_wallet_outlined,
-        PaymentMethod.partial => Icons.call_split_outlined,
-      };
-
-  String _timeString(DateTime dt) {
-    final h = dt.hour > 12 ? dt.hour - 12 : dt.hour == 0 ? 12 : dt.hour;
-    final m = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    return '$h:$m $period';
-  }
 }
 
-class _ReceiptRow extends StatelessWidget {
+// ── Receipt split row ─────────────────────────────────────────────────────────
+
+class _ReceiptSplitRow extends StatelessWidget {
   final String label;
   final String value;
-  final bool bold;
-  final Color? color;
+  final Color color;
 
-  const _ReceiptRow({
+  const _ReceiptSplitRow({
     required this.label,
     required this.value,
-    this.bold = false,
-    this.color,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-      fontSize: bold ? 16 : 14,
-      color: color,
-    );
     return Row(
       children: [
-        Expanded(child: Text(label, style: style)),
-        Text(value, style: style),
+        Expanded(
+            child: Text(label, style: instrument(fontSize: 14, color: color))),
+        Text(value,
+            style: mono(
+                fontSize: 14, fontWeight: FontWeight.w600, color: color)),
       ],
     );
   }

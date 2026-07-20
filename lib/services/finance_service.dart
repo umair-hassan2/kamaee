@@ -41,6 +41,25 @@ class FinanceService {
   Future<PeriodSummary> getTodaySummary() =>
       getSummaryForPeriod(FinancePeriod.today);
 
+  Future<PeriodSummary> getPreviousPeriodSummary(FinancePeriod period) async {
+    final now = DateTime.now();
+    switch (period) {
+      case FinancePeriod.today:
+        final yesterday = startOfDay(now).subtract(const Duration(days: 1));
+        return getSummaryBetween(yesterday, startOfDay(now));
+      case FinancePeriod.week:
+        final thisWeekStart = startOfWeek(now);
+        final lastWeekStart =
+            thisWeekStart.subtract(const Duration(days: 7));
+        return getSummaryBetween(lastWeekStart, thisWeekStart);
+      case FinancePeriod.month:
+        final thisMonthStart = startOfMonth(now);
+        final lastMonthStart =
+            DateTime(now.year, now.month - 1);
+        return getSummaryBetween(lastMonthStart, thisMonthStart);
+    }
+  }
+
   Future<PeriodSummary> getSummaryBetween(DateTime start, DateTime end) async {
     final rows = await _db.getTransactionAggregatesBetween(start, end);
 

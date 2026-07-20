@@ -1,12 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../database_helper.dart';
+import '../models/app_settings.dart';
 import '../models/customer.dart';
 import '../models/khata_entry.dart';
 import '../models/sale.dart';
 import '../services/khata_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/khata_statement_pdf_generator.dart';
+import '../utils/whatsapp_share.dart';
 import 'sale_detail_screen.dart';
 
 class CustomerDetailScreen extends StatefulWidget {
@@ -67,14 +75,13 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-          20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+            20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
         child: Form(
           key: formKey,
           child: Column(
@@ -84,23 +91,22 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: (isCredit ? AppColors.danger : AppColors.sell)
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: isCredit ? AppColors.redLight : AppColors.greenLight,
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(
-                      isCredit
-                          ? Icons.arrow_upward_outlined
-                          : Icons.arrow_downward_outlined,
-                      color: isCredit ? AppColors.danger : AppColors.sell,
+                      isCredit ? Symbols.arrow_upward : Symbols.arrow_downward,
+                      color: isCredit ? AppColors.red : AppColors.green,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     isCredit ? 'Give Credit' : 'Record Payment',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: bricolage(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -108,14 +114,18 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
               TextFormField(
                 controller: amountController,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                style: mono(fontSize: 15, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   labelText: 'Amount (Rs) *',
                   hintText: '0',
-                  border: const OutlineInputBorder(),
                   prefixText: 'Rs ',
-                  prefixIcon: Icon(Icons.currency_rupee,
-                      color: isCredit ? AppColors.danger : AppColors.sell),
+                  prefixStyle: mono(fontSize: 13, color: AppColors.muted),
+                  prefixIcon: Icon(
+                    Symbols.currency_rupee,
+                    color: isCredit ? AppColors.red : AppColors.green,
+                  ),
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Amount is required';
@@ -128,11 +138,11 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
               TextFormField(
                 controller: noteController,
                 textCapitalization: TextCapitalization.sentences,
+                style: instrument(fontSize: 15),
                 decoration: const InputDecoration(
                   labelText: 'Note (optional)',
                   hintText: 'e.g. Doodh aur chai patti',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.notes_outlined),
+                  prefixIcon: Icon(Symbols.notes),
                 ),
               ),
               const SizedBox(height: 20),
@@ -153,8 +163,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                   await _loadData();
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: isCredit ? AppColors.danger : AppColors.sell,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: isCredit ? AppColors.red : AppColors.green,
                 ),
                 child: Text(isCredit ? 'Add Credit' : 'Record Payment'),
               ),
@@ -169,8 +178,10 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Entry'),
-        content: const Text('Delete this khata entry? This cannot be undone.'),
+        title: Text('Delete Entry',
+            style: bricolage(fontSize: 18, fontWeight: FontWeight.w700)),
+        content: Text('Delete this khata entry? This cannot be undone.',
+            style: instrument(fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -178,7 +189,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -190,52 +201,109 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     }
   }
 
+  void _showReminderSheet() {
+    final settings = SettingsService().settings;
+    final paymentMethods = settings.paymentMethods;
+    final shopName =
+        settings.shopName.isNotEmpty ? settings.shopName : 'our shop';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _ReminderSheet(
+        customer: _customer,
+        khataService: _khataService,
+        shopName: shopName,
+        paymentMethods: paymentMethods,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final balance = _customer.balance;
     final hasBalance = balance > 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_customer.name),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: [
-            const Tab(text: 'Khata'),
-            Tab(text: 'Sales (${_sales.length})'),
-          ],
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: TabBarView(
-                controller: _tabController,
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+              child: Row(
                 children: [
-                  _KhataTab(
-                    customer: _customer,
-                    entries: _entries,
-                    hasBalance: hasBalance,
-                    balance: balance,
-                    onCredit: () => _showEntrySheet(entryType: KhataEntryType.credit),
-                    onPayment: () => _showEntrySheet(entryType: KhataEntryType.payment),
-                    onDelete: _deleteEntry,
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Symbols.arrow_back,
+                        size: 24, color: AppColors.ink),
                   ),
-                  _SalesTab(sales: _sales, customerName: _customer.name),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_customer.name,
+                        style: bricolage(
+                            fontSize: 20, fontWeight: FontWeight.w700)),
+                  ),
                 ],
               ),
             ),
+
+            // ── Tabs ──────────────────────────────────────────────────────
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                tabs: [
+                  const Tab(text: 'Khata'),
+                  Tab(text: 'Sales (${_sales.length})'),
+                ],
+              ),
+            ),
+
+            // ── Content ───────────────────────────────────────────────────
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadData,
+                      color: AppColors.green,
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _KhataTab(
+                            customer: _customer,
+                            entries: _entries,
+                            hasBalance: hasBalance,
+                            balance: balance,
+                            onCredit: () => _showEntrySheet(
+                                entryType: KhataEntryType.credit),
+                            onPayment: () => _showEntrySheet(
+                                entryType: KhataEntryType.payment),
+                            onRemind: _showReminderSheet,
+                            onDelete: _deleteEntry,
+                          ),
+                          _SalesTab(
+                              sales: _sales,
+                              customerName: _customer.name),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-// ─── Khata Tab ────────────────────────────────────────────────────────────────
+// ── Khata tab ─────────────────────────────────────────────────────────────────
 
 class _KhataTab extends StatelessWidget {
   final Customer customer;
@@ -244,6 +312,7 @@ class _KhataTab extends StatelessWidget {
   final double balance;
   final VoidCallback onCredit;
   final VoidCallback onPayment;
+  final VoidCallback onRemind;
   final Future<void> Function(KhataEntry) onDelete;
 
   const _KhataTab({
@@ -253,34 +322,25 @@ class _KhataTab extends StatelessWidget {
     required this.balance,
     required this.onCredit,
     required this.onPayment,
+    required this.onRemind,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
       children: [
-        // Balance Card
+        // ── Outstanding balance card ─────────────────────────────────
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: hasBalance
-                  ? [
-                      AppColors.warning.withValues(alpha: 0.15),
-                      AppColors.warning.withValues(alpha: 0.05),
-                    ]
-                  : [
-                      AppColors.sell.withValues(alpha: 0.15),
-                      AppColors.sell.withValues(alpha: 0.05),
-                    ],
-            ),
+            color: hasBalance ? AppColors.amberLight : AppColors.greenLight,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: hasBalance
-                  ? AppColors.warning.withValues(alpha: 0.3)
-                  : AppColors.sell.withValues(alpha: 0.3),
+                  ? const Color(0xFFEAD6AE)
+                  : const Color(0xFFC7E4D5),
             ),
           ),
           child: Column(
@@ -289,107 +349,179 @@ class _KhataTab extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    hasBalance
-                        ? Icons.warning_amber_outlined
-                        : Icons.check_circle_outline,
-                    color: hasBalance ? AppColors.warning : AppColors.sell,
-                    size: 20,
+                    hasBalance ? Symbols.warning : Symbols.check_circle,
+                    color: hasBalance ? AppColors.amber : AppColors.green,
+                    size: 18,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    hasBalance ? 'Outstanding Balance' : 'All Clear',
-                    style: TextStyle(
-                      color: hasBalance ? AppColors.warning : AppColors.sell,
+                    hasBalance ? 'Outstanding balance' : 'All Clear',
+                    style: instrument(
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      color: hasBalance
+                          ? AppColors.amberDark
+                          : AppColors.greenDark,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 formatPkr(balance),
-                style: TextStyle(
+                style: mono(
                   fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: hasBalance ? AppColors.warning : AppColors.sell,
-                  letterSpacing: -1,
+                  fontWeight: FontWeight.w700,
+                  color: hasBalance ? AppColors.amberDark : AppColors.greenDark,
+                  letterSpacing: -0.02,
                 ),
               ),
               if (customer.phone.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.phone_outlined, size: 14, color: AppColors.muted),
-                    const SizedBox(width: 4),
+                    Icon(Symbols.call,
+                        size: 15,
+                        color: hasBalance
+                            ? AppColors.amber
+                            : AppColors.green),
+                    const SizedBox(width: 5),
                     Text(customer.phone,
-                        style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                        style: mono(
+                            fontSize: 12.5,
+                            color: hasBalance
+                                ? const Color(0xFF8A6A3A)
+                                : AppColors.greenDark)),
                   ],
                 ),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+
+        // ── Action buttons ───────────────────────────────────────────
         Row(
           children: [
             Expanded(
-              child: FilledButton.icon(
-                onPressed: onCredit,
-                icon: const Icon(Icons.arrow_upward_outlined),
-                label: const Text('Give Credit'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              child: GestureDetector(
+                onTap: onCredit,
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppColors.red,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Symbols.arrow_upward,
+                          size: 19, color: Colors.white),
+                      const SizedBox(width: 7),
+                      Text('Give Credit',
+                          style: instrument(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                    ],
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: FilledButton.icon(
-                onPressed: onPayment,
-                icon: const Icon(Icons.arrow_downward_outlined),
-                label: const Text('Record Payment'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.sell,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              child: GestureDetector(
+                onTap: onPayment,
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppColors.green,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Symbols.arrow_downward,
+                          size: 19, color: Colors.white),
+                      const SizedBox(width: 7),
+                      Text('Payment',
+                          style: instrument(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        if (hasBalance) ...[
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: onRemind,
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.amberLight,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEAD6AE)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Symbols.notifications_active,
+                      size: 19, color: AppColors.amber),
+                  const SizedBox(width: 7),
+                  Text('Send Payment Reminder',
+                      style: instrument(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.amberDark)),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 22),
+
+        // ── History header ───────────────────────────────────────────
         Row(
           children: [
-            const Text('History',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('History',
+                style: bricolage(
+                    fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: AppColors.paperDark,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text('${entries.length}',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                  style: mono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.muted)),
             ),
           ],
         ),
         const SizedBox(height: 12),
+
         if (entries.isEmpty)
           Container(
             padding: const EdgeInsets.all(24),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Text(
+            child: Text(
               'No entries yet. Use the buttons above to add credit or record a payment.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted),
+              style: instrument(fontSize: 14, color: AppColors.muted),
             ),
           )
         else
@@ -397,13 +529,12 @@ class _KhataTab extends StatelessWidget {
                 entry: entry,
                 onDelete: () => onDelete(entry),
               )),
-        const SizedBox(height: 24),
       ],
     );
   }
 }
 
-// ─── Sales Tab ────────────────────────────────────────────────────────────────
+// ── Sales tab ─────────────────────────────────────────────────────────────────
 
 class _SalesTab extends StatelessWidget {
   final List<Sale> sales;
@@ -414,27 +545,40 @@ class _SalesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (sales.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.muted),
-            SizedBox(height: 12),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.amberLight,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Symbols.receipt_long,
+                  size: 32, color: AppColors.amber),
+            ),
+            const SizedBox(height: 12),
             Text('No sales yet',
-                style: TextStyle(fontSize: 16, color: AppColors.muted)),
-            SizedBox(height: 6),
+                style: instrument(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink)),
+            const SizedBox(height: 6),
             Text('Sales made to this customer will appear here',
-                style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                style: instrument(fontSize: 13, color: AppColors.muted)),
           ],
         ),
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
       itemCount: sales.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _SaleTile(sale: sales[i], customerName: customerName),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) =>
+          _SaleTile(sale: sales[i], customerName: customerName),
     );
   }
 }
@@ -450,26 +594,30 @@ class _SaleTile extends StatelessWidget {
     final dt = DateTime.fromMillisecondsSinceEpoch(sale.timestamp);
     final dateStr = DateFormat('d MMM yyyy, h:mm a').format(dt);
 
-    Color methodColor;
-    IconData methodIcon;
-    String methodLabel;
-    switch (sale.paymentMethod) {
-      case PaymentMethod.cash:
-        methodColor = AppColors.sell;
-        methodIcon = Icons.payments_outlined;
-        methodLabel = 'Cash';
-      case PaymentMethod.khata:
-        methodColor = AppColors.warning;
-        methodIcon = Icons.account_balance_wallet_outlined;
-        methodLabel = 'Full Khata';
-      case PaymentMethod.partial:
-        methodColor = AppColors.accent;
-        methodIcon = Icons.call_split_outlined;
-        methodLabel = 'Partial';
-    }
+    final ({Color iconBg, Color iconColor, IconData icon, String label})
+        method = switch (sale.paymentMethod) {
+      PaymentMethod.cash => (
+          iconBg: AppColors.greenLight,
+          iconColor: AppColors.green,
+          icon: Symbols.payments,
+          label: 'Cash',
+        ),
+      PaymentMethod.khata => (
+          iconBg: AppColors.amberLight,
+          iconColor: AppColors.amber,
+          icon: Symbols.account_balance_wallet,
+          label: 'Full Khata',
+        ),
+      PaymentMethod.partial => (
+          iconBg: AppColors.tealLight,
+          iconColor: AppColors.teal,
+          icon: Symbols.call_split,
+          label: 'Partial',
+        ),
+    };
 
     return Material(
-      color: Colors.white,
+      color: AppColors.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: () => Navigator.push(
@@ -481,71 +629,293 @@ class _SaleTile extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(14),
         child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: methodColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(methodIcon, color: methodColor, size: 20),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(dateStr,
-                    style: const TextStyle(fontSize: 13, color: AppColors.muted)),
-                const SizedBox(height: 2),
-                Row(
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: method.iconBg,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(method.icon, color: method.iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: methodColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(methodLabel,
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: methodColor)),
+                    Text(dateStr,
+                        style: mono(fontSize: 12, color: AppColors.muted)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: method.iconBg,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(method.label,
+                              style: instrument(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: method.iconColor)),
+                        ),
+                        if (sale.khataAmount > 0) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '${formatPkr(sale.khataAmount)} on credit',
+                            style: mono(fontSize: 11, color: AppColors.amber),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (sale.khataAmount > 0) ...[
-                      const SizedBox(width: 6),
-                      Text('${formatPkr(sale.khataAmount)} on credit',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.warning)),
-                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+              Text(
+                formatPkr(sale.totalAmount),
+                style: mono(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink),
+              ),
+            ],
           ),
-          Text(
-            formatPkr(sale.totalAmount),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: AppColors.primaryDark,
-            ),
-          ),
-        ],
-      ),
         ),
       ),
     );
   }
 }
 
-// ─── Entry Tile ───────────────────────────────────────────────────────────────
+// ── Reminder sheet ────────────────────────────────────────────────────────────
+
+class _ReminderSheet extends StatefulWidget {
+  final Customer customer;
+  final KhataService khataService;
+  final String shopName;
+  final List<ShopPaymentMethod> paymentMethods;
+
+  const _ReminderSheet({
+    required this.customer,
+    required this.khataService,
+    required this.shopName,
+    required this.paymentMethods,
+  });
+
+  @override
+  State<_ReminderSheet> createState() => _ReminderSheetState();
+}
+
+class _ReminderSheetState extends State<_ReminderSheet> {
+  int _selectedMethodIndex = 0;
+  bool _generatingPdf = false;
+
+  String _buildMessage() {
+    final name = widget.customer.name;
+    final shopName = widget.shopName;
+    final balance = formatPkr(widget.customer.balance);
+
+    String paymentLine = '';
+    if (widget.paymentMethods.isNotEmpty) {
+      final method = widget.paymentMethods[_selectedMethodIndex];
+      paymentLine =
+          '\n\n🔗 Pay via ${method.label}:\n${method.url}';
+    }
+
+    return 'Assalam-o-Alaikum $name,\n\n'
+        'Your outstanding khata at $shopName is $balance. '
+        'Please pay at your earliest convenience.'
+        '$paymentLine\n\n'
+        'Or scan the QR code inside the attached PDF for payment.\n'
+        'Or you can pay at the counter.\n\n'
+        'Regards,\n$shopName';
+  }
+
+  Future<void> _openWhatsApp() async {
+    final message = _buildMessage();
+    if (widget.customer.phone.isNotEmpty) {
+      await WhatsAppShare.shareWithPhone(widget.customer.phone, message);
+    } else {
+      await WhatsAppShare.share(message);
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    setState(() => _generatingPdf = true);
+    try {
+      final entriesSinceSettlement = await widget.khataService
+          .getEntriesSinceLastSettlement(widget.customer.id!);
+      final pdfBytes = await KhataStatementPdfGenerator.generate(
+        customer: widget.customer,
+        entries: entriesSinceSettlement,
+        outstandingBalance: widget.customer.balance,
+        paymentMethods: widget.paymentMethods,
+        shopName: widget.shopName,
+      );
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/khata_${widget.customer.name.replaceAll(' ', '_')}.pdf');
+      await file.writeAsBytes(pdfBytes);
+      if (!mounted) return;
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        subject: 'Khata Statement — ${widget.customer.name}',
+      );
+    } finally {
+      if (mounted) setState(() => _generatingPdf = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhone = widget.customer.phone.isNotEmpty;
+    final hasMethods = widget.paymentMethods.isNotEmpty;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Sheet header ──────────────────────────────────────────────
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.greenLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(Symbols.notifications_active,
+                    color: AppColors.green, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Send Reminder',
+                        style: bricolage(
+                            fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(
+                      hasPhone
+                          ? 'Will open WhatsApp to ${widget.customer.phone}'
+                          : 'Opens WhatsApp — pick a contact manually',
+                      style: instrument(fontSize: 12, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // ── Message preview ───────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.paperDark,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              _buildMessage(),
+              style: instrument(fontSize: 12.5, color: AppColors.ink),
+            ),
+          ),
+
+          // ── Payment method selector ───────────────────────────────────
+          if (hasMethods) ...[
+            const SizedBox(height: 14),
+            Text('Include payment link via:',
+                style: instrument(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (var i = 0; i < widget.paymentMethods.length; i++)
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedMethodIndex = i),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedMethodIndex == i
+                            ? AppColors.green
+                            : AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _selectedMethodIndex == i
+                              ? AppColors.green
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Text(
+                        widget.paymentMethods[i].label,
+                        style: instrument(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _selectedMethodIndex == i
+                              ? Colors.white
+                              : AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 18),
+
+          // ── Action buttons ────────────────────────────────────────────
+          FilledButton.icon(
+            onPressed: _openWhatsApp,
+            icon: const Icon(Symbols.chat, size: 18),
+            label: const Text('Open in WhatsApp'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _generatingPdf ? null : _sharePdf,
+            icon: _generatingPdf
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.green),
+                  )
+                : const Icon(Symbols.picture_as_pdf, size: 18),
+            label: Text(
+                _generatingPdf ? 'Generating...' : 'Share PDF Statement'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.ink,
+              side: const BorderSide(color: AppColors.border),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Entry tile ────────────────────────────────────────────────────────────────
 
 class _EntryTile extends StatelessWidget {
   final KhataEntry entry;
@@ -571,31 +941,33 @@ class _EntryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCredit = entry.type == KhataEntryType.credit;
-    final color = isCredit ? AppColors.danger : AppColors.sell;
+    final color = isCredit ? AppColors.red : AppColors.green;
+    final bgColor = isCredit ? AppColors.redLight : AppColors.greenLight;
     final dt = DateTime.fromMillisecondsSinceEpoch(entry.timestamp);
     final dateStr = DateFormat('d MMM yyyy, h:mm a').format(dt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: bgColor,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              isCredit ? Icons.arrow_upward_outlined : Icons.arrow_downward_outlined,
+              isCredit ? Symbols.arrow_upward : Symbols.arrow_downward,
               color: color,
-              size: 20,
+              size: 19,
             ),
           ),
           const SizedBox(width: 12),
@@ -606,43 +978,38 @@ class _EntryTile extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
+                        color: bgColor,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         isCredit ? 'Credit' : 'Payment',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                        ),
+                        style: instrument(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: color),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       formatPkr(entry.amount),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: color,
-                      ),
+                      style:
+                          mono(fontSize: 14, fontWeight: FontWeight.w700, color: color),
                     ),
                   ],
                 ),
                 if (entry.note != null && entry.note!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    entry.note!,
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
-                  ),
+                  const SizedBox(height: 5),
+                  Text(entry.note!,
+                      style: instrument(fontSize: 12, color: AppColors.muted)),
                 ],
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     Text(dateStr,
-                        style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                        style: mono(fontSize: 11, color: AppColors.mutedLight)),
                     if (entry.saleId != null) ...[
                       const SizedBox(width: 8),
                       GestureDetector(
@@ -651,20 +1018,20 @@ class _EntryTile extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
+                            color: AppColors.greenLight,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.receipt_outlined,
-                                  size: 11, color: AppColors.primary),
-                              SizedBox(width: 3),
+                              const Icon(Symbols.receipt,
+                                  size: 11, color: AppColors.green),
+                              const SizedBox(width: 3),
                               Text('View Sale',
-                                  style: TextStyle(
+                                  style: instrument(
                                       fontSize: 11,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600)),
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.green)),
                             ],
                           ),
                         ),
@@ -676,7 +1043,8 @@ class _EntryTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, color: Colors.grey.shade400),
+            icon: const Icon(Symbols.delete_outline,
+                color: AppColors.mutedLight, size: 20),
             onPressed: onDelete,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),

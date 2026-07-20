@@ -1,3 +1,18 @@
+class ShopPaymentMethod {
+  final String label;
+  final String url;
+
+  const ShopPaymentMethod({required this.label, required this.url});
+
+  Map<String, dynamic> toJson() => {'label': label, 'url': url};
+
+  factory ShopPaymentMethod.fromJson(Map<String, dynamic> json) =>
+      ShopPaymentMethod(
+        label: json['label'] as String,
+        url: json['url'] as String,
+      );
+}
+
 enum CurrencyOption {
   pkr('PKR', 'Rs ', 'en_PK'),
   usd('USD', '\$', 'en_US'),
@@ -24,12 +39,14 @@ class AppSettings {
   final String ownerName;
   final int lowStockThreshold;
   final CurrencyOption currency;
+  final List<ShopPaymentMethod> paymentMethods;
 
   const AppSettings({
     this.shopName = '',
     this.ownerName = '',
     this.lowStockThreshold = 5,
     this.currency = CurrencyOption.pkr,
+    this.paymentMethods = const [],
   });
 
   static const defaults = AppSettings();
@@ -39,12 +56,14 @@ class AppSettings {
     String? ownerName,
     int? lowStockThreshold,
     CurrencyOption? currency,
+    List<ShopPaymentMethod>? paymentMethods,
   }) {
     return AppSettings(
       shopName: shopName ?? this.shopName,
       ownerName: ownerName ?? this.ownerName,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
       currency: currency ?? this.currency,
+      paymentMethods: paymentMethods ?? this.paymentMethods,
     );
   }
 }

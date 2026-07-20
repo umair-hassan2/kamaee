@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/expense.dart';
 import '../models/finance_models.dart';
 import '../models/transaction.dart';
@@ -23,6 +24,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   FinancePeriod _period = FinancePeriod.today;
 
   PeriodSummary _summary = const PeriodSummary();
+  PeriodSummary? _previousSummary;
   List<ChartDataPoint> _chartData = [];
   List<ProductBreakdown> _topProducts = [];
   List<SaleTransaction> _transactions = [];
@@ -49,6 +51,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       _financeService.getInventoryValue(),
       _expenseService.getExpenses(from: from, to: to),
       _expenseService.getTotalExpenses(from: from, to: to),
+      _financeService.getPreviousPeriodSummary(_period),
     ]);
     if (!mounted) return;
     setState(() {
@@ -59,6 +62,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       _inventoryValue = results[4] as double;
       _expenses = results[5] as List<Expense>;
       _totalExpenses = results[6] as double;
+      _previousSummary = results[7] as PeriodSummary;
       _isLoading = false;
     });
   }
@@ -77,6 +81,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
         return 'This Week';
       case FinancePeriod.month:
         return 'This Month';
+    }
+  }
+
+  String get _comparisonLabel {
+    switch (_period) {
+      case FinancePeriod.today:
+        return 'vs yesterday';
+      case FinancePeriod.week:
+        return 'vs last week';
+      case FinancePeriod.month:
+        return 'vs last month';
     }
   }
 
@@ -99,7 +114,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -117,9 +132,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Add Expense',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: bricolage(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 20),
                 Wrap(
@@ -193,64 +208,87 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     return Scaffold(
+      backgroundColor: AppColors.paper,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddExpenseSheet,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.green,
         foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Symbols.add),
+        label: Text('Add Expense',
+            style: instrument(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white)),
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
+        color: AppColors.green,
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
-              pinned: true,
-              title: const Text('Cash Flow'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              actions: [
-                if (_isExporting)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  )
-                else
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined),
-                    tooltip: 'Export CSV',
-                    onPressed: _exportData,
-                  ),
-              ],
-            ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: SegmentedButton<FinancePeriod>(
-                  segments: const [
-                    ButtonSegment(
-                      value: FinancePeriod.today,
-                      label: Text('Today'),
+                padding: EdgeInsets.fromLTRB(20, topPadding + 14, 20, 0),
+                child: Column(
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Icon(Symbols.arrow_back,
+                              size: 24, color: AppColors.ink),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Cash Flow',
+                              style: bricolage(
+                                  fontSize: 20, fontWeight: FontWeight.w700)),
+                        ),
+                        if (_isExporting)
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          GestureDetector(
+                            onTap: _exportData,
+                            child: const Icon(Symbols.ios_share,
+                                size: 23, color: AppColors.muted),
+                          ),
+                      ],
                     ),
-                    ButtonSegment(
-                      value: FinancePeriod.week,
-                      label: Text('Week'),
+                    const SizedBox(height: 16),
+                    // Period tabs
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.paperDark,
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(color: AppColors.borderDark),
+                      ),
+                      child: Row(
+                        children: [
+                          _PeriodTab(
+                              label: 'Today',
+                              selected: _period == FinancePeriod.today,
+                              onTap: () => _setPeriod(FinancePeriod.today)),
+                          _PeriodTab(
+                              label: 'Week',
+                              selected: _period == FinancePeriod.week,
+                              onTap: () => _setPeriod(FinancePeriod.week)),
+                          _PeriodTab(
+                              label: 'Month',
+                              selected: _period == FinancePeriod.month,
+                              onTap: () => _setPeriod(FinancePeriod.month)),
+                        ],
+                      ),
                     ),
-                    ButtonSegment(
-                      value: FinancePeriod.month,
-                      label: Text('Month'),
-                    ),
+                    const SizedBox(height: 16),
                   ],
-                  selected: {_period},
-                  onSelectionChanged: (s) => _setPeriod(s.first),
                 ),
               ),
             ),
@@ -260,10 +298,14 @@ class _FinanceScreenState extends State<FinanceScreen> {
               )
             else ...[
               SliverPadding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _SummaryGrid(summary: _summary),
+                    _SummaryGrid(
+                      summary: _summary,
+                      previous: _previousSummary,
+                      comparisonLabel: _comparisonLabel,
+                    ),
                     const SizedBox(height: 10),
                     _NetProfitCard(
                       grossProfit: _summary.profit,
@@ -340,8 +382,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
 class _SummaryGrid extends StatelessWidget {
   final PeriodSummary summary;
+  final PeriodSummary? previous;
+  final String comparisonLabel;
 
-  const _SummaryGrid({required this.summary});
+  const _SummaryGrid({
+    required this.summary,
+    this.previous,
+    this.comparisonLabel = '',
+  });
+
+  double? _delta(double current, double prev) {
+    if (prev == 0) return null;
+    return (current - prev) / prev * 100;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +408,8 @@ class _SummaryGrid extends StatelessWidget {
                 value: formatPkr(summary.revenue),
                 icon: Icons.payments_outlined,
                 color: AppColors.sell,
+                deltaPercent: _delta(summary.revenue, previous?.revenue ?? 0),
+                comparisonLabel: comparisonLabel,
               ),
             ),
             const SizedBox(width: 10),
@@ -364,6 +419,8 @@ class _SummaryGrid extends StatelessWidget {
                 value: formatPkr(summary.profit),
                 icon: Icons.trending_up,
                 color: AppColors.primary,
+                deltaPercent: _delta(summary.profit, previous?.profit ?? 0),
+                comparisonLabel: comparisonLabel,
               ),
             ),
           ],
@@ -397,7 +454,7 @@ class _SummaryGrid extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
@@ -438,22 +495,29 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final double? deltaPercent;
+  final String comparisonLabel;
 
   const _MetricCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
+    this.deltaPercent,
+    this.comparisonLabel = '',
   });
 
   @override
   Widget build(BuildContext context) {
+    final isPositive = (deltaPercent ?? 0) >= 0;
+    final deltaColor = isPositive ? AppColors.greenDark : AppColors.red;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,21 +525,49 @@ class _MetricCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha:0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+          if (deltaPercent != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 11,
+                  color: deltaColor,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${isPositive ? '+' : ''}${deltaPercent!.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: deltaColor,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    comparisonLabel,
+                    style: const TextStyle(
+                        fontSize: 10, color: AppColors.mutedLight),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -498,68 +590,6 @@ class _MiniStat extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InventoryValueCard extends StatelessWidget {
-  final double value;
-
-  const _InventoryValueCard({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF134E4A), AppColors.primaryDark],
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha:0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.warehouse_outlined, color: Colors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Inventory Value',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha:0.8),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  formatPkr(value),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Total cost of stock on hand',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha:0.65),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -812,9 +842,9 @@ class _TopProductsChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -882,7 +912,7 @@ class _TransactionTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -954,9 +984,9 @@ class _ChartCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -1003,14 +1033,14 @@ class _ChartPlaceholder extends StatelessWidget {
       height: 140,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.bar_chart_outlined, size: 36, color: Colors.grey.shade400),
+          Icon(Icons.bar_chart_outlined, size: 36, color: AppColors.mutedLight),
           const SizedBox(height: 8),
           Text(message, style: const TextStyle(color: AppColors.muted)),
         ],
@@ -1026,9 +1056,9 @@ class _EmptyTransactions extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: const Text(
         'No transactions yet. Sales and restocks will appear here.',
@@ -1053,9 +1083,9 @@ class _NetProfitCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -1079,7 +1109,7 @@ class _NetProfitCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Gross Profit − Expenses',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                  style: TextStyle(fontSize: 11, color: AppColors.mutedLight),
                 ),
               ],
             ),
@@ -1113,7 +1143,7 @@ class _ExpensesList extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: AppColors.border),
         ),
         child: const Text(
           'No expenses recorded for this period.',
@@ -1147,7 +1177,7 @@ class _ExpenseTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -1208,7 +1238,7 @@ class _ExpenseTile extends StatelessWidget {
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () => onDelete(expense.id!),
-                child: Icon(Icons.delete_outline, size: 18, color: Colors.grey.shade400),
+                child: Icon(Icons.delete_outline, size: 18, color: AppColors.mutedLight),
               ),
             ],
           ),
@@ -1222,4 +1252,96 @@ String _compactAmount(double value) {
   if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
   if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
   return value.toStringAsFixed(0);
+}
+
+// ── Period tab ─────────────────────────────────────────────────────────────────
+
+class _PeriodTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PeriodTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.ink : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: instrument(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? Colors.white : AppColors.muted,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Inventory value card ──────────────────────────────────────────────────────
+
+class _InventoryValueCard extends StatelessWidget {
+  final double value;
+
+  const _InventoryValueCard({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Symbols.warehouse,
+                size: 22, color: AppColors.greenBright),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Inventory value',
+                    style: instrument(
+                        fontSize: 12, color: AppColors.inkMuted)),
+                const SizedBox(height: 2),
+                Text(
+                  formatPkr(value),
+                  style: mono(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onDark),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

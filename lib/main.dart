@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
-import 'screens/main_shell.dart';
+import 'screens/splash_screen.dart';
 import 'services/cart_service.dart';
 import 'services/finance_service.dart';
 import 'services/notification_service.dart';
@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
       title: 'Kamaae',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const MainShell(),
+      home: const SplashScreen(),
     );
   }
 }

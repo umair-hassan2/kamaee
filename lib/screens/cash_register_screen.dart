@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/cash_session.dart';
 import '../services/cash_register_service.dart';
 import '../theme/app_theme.dart';
@@ -60,40 +61,34 @@ class _CashRegisterScreenState extends State<CashRegisterScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          20 + MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+            20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
         child: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Open Register',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              Text('Open Register',
+                  style: bricolage(fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              const Text(
-                'Count the cash in the drawer before starting.',
-                style: TextStyle(color: AppColors.muted, fontSize: 14),
-              ),
+              Text('Count the cash in the drawer before starting.',
+                  style: instrument(fontSize: 14, color: AppColors.muted)),
               const SizedBox(height: 20),
               TextFormField(
                 controller: controller,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                style: mono(fontSize: 15, fontWeight: FontWeight.w600),
                 decoration: const InputDecoration(
                   labelText: 'Opening Cash *',
-                  prefixIcon: Icon(Icons.payments_outlined),
+                  prefixIcon: Icon(Symbols.payments),
                   hintText: '0',
                 ),
                 validator: (v) {
@@ -106,9 +101,7 @@ class _CashRegisterScreenState extends State<CashRegisterScreen> {
               FilledButton(
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
-                  await _service.openSession(
-                    double.parse(controller.text.trim()),
-                  );
+                  await _service.openSession(double.parse(controller.text.trim()));
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                     _loadData();
@@ -130,36 +123,33 @@ class _CashRegisterScreenState extends State<CashRegisterScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            20 + MediaQuery.of(ctx).viewInsets.bottom,
-          ),
+              20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
           child: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Close Register',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
+                Text('Close Register',
+                    style:
+                        bricolage(fontSize: 20, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: controller,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: mono(fontSize: 15, fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(
                     labelText: 'Actual Cash Count *',
-                    prefixIcon: Icon(Icons.payments_outlined),
+                    prefixIcon: Icon(Symbols.payments),
                     hintText: '0',
                   ),
                   onChanged: (_) => setSheetState(() {}),
@@ -171,31 +161,27 @@ class _CashRegisterScreenState extends State<CashRegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 _CashPreviewRow(
-                  label: 'Expected',
-                  value: _expectedCash,
-                  color: AppColors.muted,
-                ),
+                    label: 'Expected',
+                    value: _expectedCash,
+                    color: AppColors.muted),
                 const SizedBox(height: 8),
-                Builder(
-                  builder: (_) {
-                    final counted = double.tryParse(controller.text.trim()) ?? 0;
-                    final diff = counted - _expectedCash;
-                    final color = diff == 0 ? AppColors.sell : AppColors.danger;
-                    return _CashPreviewRow(
-                      label: 'Discrepancy',
-                      value: diff,
-                      color: color,
-                      showSign: true,
-                    );
-                  },
-                ),
+                Builder(builder: (_) {
+                  final counted = double.tryParse(controller.text.trim()) ?? 0;
+                  final diff = counted - _expectedCash;
+                  final color = diff == 0 ? AppColors.green : AppColors.red;
+                  return _CashPreviewRow(
+                    label: 'Discrepancy',
+                    value: diff,
+                    color: color,
+                    showSign: true,
+                  );
+                }),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
-                    await _service.closeSession(
-                      double.parse(controller.text.trim()),
-                    );
+                    await _service
+                        .closeSession(double.parse(controller.text.trim()));
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
                       _loadData();
@@ -214,85 +200,117 @@ class _CashRegisterScreenState extends State<CashRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cash Register'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+              child: Row(
                 children: [
-                  if (_activeSession == null) ...[
-                    _ClosedRegisterCard(onOpen: _showOpenRegisterSheet),
-                  ] else ...[
-                    _ActiveSessionCard(
-                      session: _activeSession!,
-                      salesCount: _salesCount,
-                      expectedCash: _expectedCash,
-                      onClose: _showCloseRegisterSheet,
-                    ),
-                  ],
-                  if (_history.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text(
-                      'History',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    ..._history.map((s) => _SessionHistoryTile(session: s)),
-                  ],
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Symbols.arrow_back,
+                        size: 24, color: AppColors.ink),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Cash Register',
+                      style: bricolage(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
+
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadData,
+                      color: AppColors.green,
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [
+                          if (_activeSession == null)
+                            _ClosedRegisterCard(
+                                onOpen: _showOpenRegisterSheet)
+                          else
+                            _ActiveSessionCard(
+                              session: _activeSession!,
+                              salesCount: _salesCount,
+                              expectedCash: _expectedCash,
+                              onClose: _showCloseRegisterSheet,
+                            ),
+                          if (_history.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            Text(
+                              'HISTORY',
+                              style: instrument(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.muted,
+                                letterSpacing: 0.12,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ..._history
+                                .map((s) => _SessionHistoryTile(session: s)),
+                          ],
+                          const SizedBox(height: 80),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// ── Closed register card ──────────────────────────────────────────────────────
+
 class _ClosedRegisterCard extends StatelessWidget {
   final VoidCallback onOpen;
-
   const _ClosedRegisterCard({required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
-              color: AppColors.muted.withValues(alpha: 0.10),
+              color: AppColors.paperDark,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.lock_outline, size: 40, color: AppColors.muted),
+            child: const Icon(Symbols.lock,
+                size: 36, color: AppColors.muted),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Register Closed',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+          Text('Register Closed',
+              style: bricolage(fontSize: 22, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Open the register to start tracking cash for this session.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted),
+            style: instrument(fontSize: 14, color: AppColors.muted),
           ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: onOpen,
-              icon: const Icon(Icons.lock_open_outlined),
+              icon: const Icon(Symbols.lock_open),
               label: const Text('Open Register'),
             ),
           ),
@@ -301,6 +319,8 @@ class _ClosedRegisterCard extends StatelessWidget {
     );
   }
 }
+
+// ── Active session card ───────────────────────────────────────────────────────
 
 class _ActiveSessionCard extends StatelessWidget {
   final CashSession session;
@@ -323,58 +343,54 @@ class _ActiveSessionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF134E4A), AppColors.primaryDark],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.20),
-                  borderRadius: BorderRadius.circular(20),
+          // OPEN badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.greenBright.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.greenBright,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF4ADE80),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'OPEN',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 7),
+                Text(
+                  'OPEN',
+                  style: instrument(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.greenBright,
+                    letterSpacing: 0.06,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
             'Opened $timeStr',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+            style: instrument(fontSize: 12.5, color: AppColors.inkMuted),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _SessionStat(
-                  label: 'Opening Cash',
+                  label: 'Opening cash',
                   value: formatPkr(session.openingCash),
                 ),
               ),
@@ -386,22 +402,33 @@ class _ActiveSessionCard extends StatelessWidget {
               ),
               Expanded(
                 child: _SessionStat(
-                  label: 'Expected Cash',
+                  label: 'Expected',
                   value: formatPkr(expectedCash),
+                  valueColor: AppColors.greenBright,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onClose,
-              icon: const Icon(Icons.lock_outline, color: Colors.white),
-              label: const Text('Close Register', style: TextStyle(color: Colors.white)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white54),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+          GestureDetector(
+            onTap: onClose,
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Symbols.lock, size: 20, color: AppColors.onDark),
+                  const SizedBox(width: 8),
+                  Text('Close Register',
+                      style: instrument(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onDark)),
+                ],
               ),
             ),
           ),
@@ -414,31 +441,30 @@ class _ActiveSessionCard extends StatelessWidget {
 class _SessionStat extends StatelessWidget {
   final String label;
   final String value;
+  final Color valueColor;
 
-  const _SessionStat({required this.label, required this.value});
+  const _SessionStat({
+    required this.label,
+    required this.value,
+    this.valueColor = AppColors.onDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 11),
-        ),
+        Text(label, style: instrument(fontSize: 11, color: AppColors.inkMuted)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text(value,
+            style: mono(
+                fontSize: 15, fontWeight: FontWeight.w700, color: valueColor)),
       ],
     );
   }
 }
+
+// ── Cash preview row (in close sheet) ────────────────────────────────────────
 
 class _CashPreviewRow extends StatelessWidget {
   final String label;
@@ -465,20 +491,22 @@ class _CashPreviewRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
-          Text(
-            '$sign${formatPkr(value)}',
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-          ),
+          Text(label,
+              style: instrument(
+                  fontSize: 14, fontWeight: FontWeight.w500, color: color)),
+          Text('$sign${formatPkr(value)}',
+              style:
+                  mono(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
         ],
       ),
     );
   }
 }
 
+// ── Session history tile ──────────────────────────────────────────────────────
+
 class _SessionHistoryTile extends StatelessWidget {
   final CashSession session;
-
   const _SessionHistoryTile({required this.session});
 
   @override
@@ -490,11 +518,11 @@ class _SessionHistoryTile extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -502,14 +530,13 @@ class _SessionHistoryTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(dateStr,
+                    style: instrument(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
                 Text(
-                  dateStr,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Opening ${formatPkr(session.openingCash)} · Closing ${formatPkr(session.closingCash ?? 0)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  'Open ${formatPkr(session.openingCash)} · Close ${formatPkr(session.closingCash ?? 0)}',
+                  style: mono(fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),
@@ -518,39 +545,37 @@ class _SessionHistoryTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.sell.withValues(alpha: 0.10),
+                color: AppColors.greenLight,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 14, color: AppColors.sell),
-                  SizedBox(width: 4),
-                  Text(
-                    'Balanced',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.sell,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  const Icon(Symbols.check_circle,
+                      size: 15, color: AppColors.green),
+                  const SizedBox(width: 5),
+                  Text('Balanced',
+                      style: instrument(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.greenDark)),
                 ],
               ),
             )
           else
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.danger.withValues(alpha: 0.10),
+                color: AppColors.redLight,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '${discrepancy > 0 ? '+' : ''}${formatPkr(discrepancy)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.danger,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: mono(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.red),
               ),
             ),
         ],
