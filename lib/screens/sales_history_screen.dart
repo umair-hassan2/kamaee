@@ -237,6 +237,24 @@ class _SaleHistoryTile extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                   color: method.textColor)),
                         ),
+                        if (sale.discountAmount > 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.redLight,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${formatPkr(sale.discountAmount)} off',
+                              style: instrument(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.red),
+                            ),
+                          ),
+                        ],
                         if (sale.khataAmount > 0) ...[
                           const SizedBox(width: 6),
                           Text(

@@ -34,7 +34,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -82,6 +82,11 @@ class DatabaseHelper {
         'ALTER TABLE khata_entries ADD COLUMN sale_id INTEGER REFERENCES sales(id)',
       );
     }
+    if (oldVersion < 7) {
+      await db.execute(
+        'ALTER TABLE sales ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   Future<void> _createSalesTable(Database db) async {
@@ -92,6 +97,7 @@ class DatabaseHelper {
       'total_amount REAL NOT NULL DEFAULT 0, '
       'paid_amount REAL NOT NULL DEFAULT 0, '
       'khata_amount REAL NOT NULL DEFAULT 0, '
+      'discount_amount REAL NOT NULL DEFAULT 0, '
       'payment_method TEXT NOT NULL DEFAULT "cash", '
       'status TEXT NOT NULL DEFAULT "draft", '
       'timestamp INTEGER NOT NULL, '

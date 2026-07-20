@@ -250,6 +250,19 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                           ),
                         ),
                         const Divider(height: 24),
+                        if (widget.sale.discountAmount > 0) ...[
+                          _Row(
+                              label: 'Subtotal',
+                              value: formatPkr(widget.sale.totalAmount +
+                                  widget.sale.discountAmount),
+                              color: AppColors.muted),
+                          const SizedBox(height: 6),
+                          _Row(
+                              label: 'Discount',
+                              value: '− ${formatPkr(widget.sale.discountAmount)}',
+                              color: AppColors.danger),
+                          const SizedBox(height: 6),
+                        ],
                         _Row(
                             label: 'Total',
                             value: formatPkr(widget.sale.totalAmount),

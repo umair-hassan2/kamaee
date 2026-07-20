@@ -24,6 +24,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   FinancePeriod _period = FinancePeriod.today;
 
   PeriodSummary _summary = const PeriodSummary();
+  PeriodSummary? _previousSummary;
   List<ChartDataPoint> _chartData = [];
   List<ProductBreakdown> _topProducts = [];
   List<SaleTransaction> _transactions = [];
@@ -50,6 +51,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       _financeService.getInventoryValue(),
       _expenseService.getExpenses(from: from, to: to),
       _expenseService.getTotalExpenses(from: from, to: to),
+      _financeService.getPreviousPeriodSummary(_period),
     ]);
     if (!mounted) return;
     setState(() {
@@ -60,6 +62,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       _inventoryValue = results[4] as double;
       _expenses = results[5] as List<Expense>;
       _totalExpenses = results[6] as double;
+      _previousSummary = results[7] as PeriodSummary;
       _isLoading = false;
     });
   }
@@ -78,6 +81,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
         return 'This Week';
       case FinancePeriod.month:
         return 'This Month';
+    }
+  }
+
+  String get _comparisonLabel {
+    switch (_period) {
+      case FinancePeriod.today:
+        return 'vs yesterday';
+      case FinancePeriod.week:
+        return 'vs last week';
+      case FinancePeriod.month:
+        return 'vs last month';
     }
   }
 
@@ -287,7 +301,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _SummaryGrid(summary: _summary),
+                    _SummaryGrid(
+                      summary: _summary,
+                      previous: _previousSummary,
+                      comparisonLabel: _comparisonLabel,
+                    ),
                     const SizedBox(height: 10),
                     _NetProfitCard(
                       grossProfit: _summary.profit,
@@ -364,8 +382,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
 class _SummaryGrid extends StatelessWidget {
   final PeriodSummary summary;
+  final PeriodSummary? previous;
+  final String comparisonLabel;
 
-  const _SummaryGrid({required this.summary});
+  const _SummaryGrid({
+    required this.summary,
+    this.previous,
+    this.comparisonLabel = '',
+  });
+
+  double? _delta(double current, double prev) {
+    if (prev == 0) return null;
+    return (current - prev) / prev * 100;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -379,6 +408,8 @@ class _SummaryGrid extends StatelessWidget {
                 value: formatPkr(summary.revenue),
                 icon: Icons.payments_outlined,
                 color: AppColors.sell,
+                deltaPercent: _delta(summary.revenue, previous?.revenue ?? 0),
+                comparisonLabel: comparisonLabel,
               ),
             ),
             const SizedBox(width: 10),
@@ -388,6 +419,8 @@ class _SummaryGrid extends StatelessWidget {
                 value: formatPkr(summary.profit),
                 icon: Icons.trending_up,
                 color: AppColors.primary,
+                deltaPercent: _delta(summary.profit, previous?.profit ?? 0),
+                comparisonLabel: comparisonLabel,
               ),
             ),
           ],
@@ -462,16 +495,23 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final double? deltaPercent;
+  final String comparisonLabel;
 
   const _MetricCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
+    this.deltaPercent,
+    this.comparisonLabel = '',
   });
 
   @override
   Widget build(BuildContext context) {
+    final isPositive = (deltaPercent ?? 0) >= 0;
+    final deltaColor = isPositive ? AppColors.greenDark : AppColors.red;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -485,21 +525,49 @@ class _MetricCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha:0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+          if (deltaPercent != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 11,
+                  color: deltaColor,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${isPositive ? '+' : ''}${deltaPercent!.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: deltaColor,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    comparisonLabel,
+                    style: const TextStyle(
+                        fontSize: 10, color: AppColors.mutedLight),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

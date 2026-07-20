@@ -1,13 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../database_helper.dart';
+import '../models/app_settings.dart';
 import '../models/customer.dart';
 import '../models/khata_entry.dart';
 import '../models/sale.dart';
 import '../services/khata_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/khata_statement_pdf_generator.dart';
+import '../utils/whatsapp_share.dart';
 import 'sale_detail_screen.dart';
 
 class CustomerDetailScreen extends StatefulWidget {
@@ -194,6 +201,28 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     }
   }
 
+  void _showReminderSheet() {
+    final settings = SettingsService().settings;
+    final paymentMethods = settings.paymentMethods;
+    final shopName =
+        settings.shopName.isNotEmpty ? settings.shopName : 'our shop';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _ReminderSheet(
+        customer: _customer,
+        khataService: _khataService,
+        shopName: shopName,
+        paymentMethods: paymentMethods,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final balance = _customer.balance;
@@ -257,6 +286,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                                 entryType: KhataEntryType.credit),
                             onPayment: () => _showEntrySheet(
                                 entryType: KhataEntryType.payment),
+                            onRemind: _showReminderSheet,
                             onDelete: _deleteEntry,
                           ),
                           _SalesTab(
@@ -282,6 +312,7 @@ class _KhataTab extends StatelessWidget {
   final double balance;
   final VoidCallback onCredit;
   final VoidCallback onPayment;
+  final VoidCallback onRemind;
   final Future<void> Function(KhataEntry) onDelete;
 
   const _KhataTab({
@@ -291,6 +322,7 @@ class _KhataTab extends StatelessWidget {
     required this.balance,
     required this.onCredit,
     required this.onPayment,
+    required this.onRemind,
     required this.onDelete,
   });
 
@@ -424,6 +456,33 @@ class _KhataTab extends StatelessWidget {
             ),
           ],
         ),
+        if (hasBalance) ...[
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: onRemind,
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppColors.amberLight,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEAD6AE)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Symbols.notifications_active,
+                      size: 19, color: AppColors.amber),
+                  const SizedBox(width: 7),
+                  Text('Send Payment Reminder',
+                      style: instrument(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.amberDark)),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 22),
 
         // ── History header ───────────────────────────────────────────
@@ -631,6 +690,226 @@ class _SaleTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Reminder sheet ────────────────────────────────────────────────────────────
+
+class _ReminderSheet extends StatefulWidget {
+  final Customer customer;
+  final KhataService khataService;
+  final String shopName;
+  final List<ShopPaymentMethod> paymentMethods;
+
+  const _ReminderSheet({
+    required this.customer,
+    required this.khataService,
+    required this.shopName,
+    required this.paymentMethods,
+  });
+
+  @override
+  State<_ReminderSheet> createState() => _ReminderSheetState();
+}
+
+class _ReminderSheetState extends State<_ReminderSheet> {
+  int _selectedMethodIndex = 0;
+  bool _generatingPdf = false;
+
+  String _buildMessage() {
+    final name = widget.customer.name;
+    final shopName = widget.shopName;
+    final balance = formatPkr(widget.customer.balance);
+
+    String paymentLine = '';
+    if (widget.paymentMethods.isNotEmpty) {
+      final method = widget.paymentMethods[_selectedMethodIndex];
+      paymentLine =
+          '\n\n🔗 Pay via ${method.label}:\n${method.url}';
+    }
+
+    return 'Assalam-o-Alaikum $name,\n\n'
+        'Your outstanding khata at $shopName is $balance. '
+        'Please pay at your earliest convenience.'
+        '$paymentLine\n\n'
+        'Or scan the QR code inside the attached PDF for payment.\n'
+        'Or you can pay at the counter.\n\n'
+        'Regards,\n$shopName';
+  }
+
+  Future<void> _openWhatsApp() async {
+    final message = _buildMessage();
+    if (widget.customer.phone.isNotEmpty) {
+      await WhatsAppShare.shareWithPhone(widget.customer.phone, message);
+    } else {
+      await WhatsAppShare.share(message);
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    setState(() => _generatingPdf = true);
+    try {
+      final entriesSinceSettlement = await widget.khataService
+          .getEntriesSinceLastSettlement(widget.customer.id!);
+      final pdfBytes = await KhataStatementPdfGenerator.generate(
+        customer: widget.customer,
+        entries: entriesSinceSettlement,
+        outstandingBalance: widget.customer.balance,
+        paymentMethods: widget.paymentMethods,
+        shopName: widget.shopName,
+      );
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/khata_${widget.customer.name.replaceAll(' ', '_')}.pdf');
+      await file.writeAsBytes(pdfBytes);
+      if (!mounted) return;
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        subject: 'Khata Statement — ${widget.customer.name}',
+      );
+    } finally {
+      if (mounted) setState(() => _generatingPdf = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhone = widget.customer.phone.isNotEmpty;
+    final hasMethods = widget.paymentMethods.isNotEmpty;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Sheet header ──────────────────────────────────────────────
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.greenLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(Symbols.notifications_active,
+                    color: AppColors.green, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Send Reminder',
+                        style: bricolage(
+                            fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(
+                      hasPhone
+                          ? 'Will open WhatsApp to ${widget.customer.phone}'
+                          : 'Opens WhatsApp — pick a contact manually',
+                      style: instrument(fontSize: 12, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // ── Message preview ───────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.paperDark,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              _buildMessage(),
+              style: instrument(fontSize: 12.5, color: AppColors.ink),
+            ),
+          ),
+
+          // ── Payment method selector ───────────────────────────────────
+          if (hasMethods) ...[
+            const SizedBox(height: 14),
+            Text('Include payment link via:',
+                style: instrument(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (var i = 0; i < widget.paymentMethods.length; i++)
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedMethodIndex = i),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedMethodIndex == i
+                            ? AppColors.green
+                            : AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _selectedMethodIndex == i
+                              ? AppColors.green
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Text(
+                        widget.paymentMethods[i].label,
+                        style: instrument(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _selectedMethodIndex == i
+                              ? Colors.white
+                              : AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 18),
+
+          // ── Action buttons ────────────────────────────────────────────
+          FilledButton.icon(
+            onPressed: _openWhatsApp,
+            icon: const Icon(Symbols.chat, size: 18),
+            label: const Text('Open in WhatsApp'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _generatingPdf ? null : _sharePdf,
+            icon: _generatingPdf
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.green),
+                  )
+                : const Icon(Symbols.picture_as_pdf, size: 18),
+            label: Text(
+                _generatingPdf ? 'Generating...' : 'Share PDF Statement'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.ink,
+              side: const BorderSide(color: AppColors.border),
+            ),
+          ),
+        ],
       ),
     );
   }

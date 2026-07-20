@@ -138,6 +138,7 @@ class CartService {
     required PaymentMethod paymentMethod,
     required double paidAmount,
     int? customerId,
+    double discountAmount = 0,
   }) async {
     final draft = await _db.getDraftSale();
     if (draft == null) throw StateError('No active cart');
@@ -193,11 +194,15 @@ class CartService {
       }
     }
 
-    final total = draft.totalAmount;
+    final subtotal = draft.totalAmount;
+    final clampedDiscount = discountAmount.clamp(0.0, subtotal);
+    final total = subtotal - clampedDiscount;
     final khata = total - paidAmount;
     final khataAmount = khata < 0 ? 0.0 : khata;
     final completed = draft.copyWith(
       customerId: customerId,
+      totalAmount: total,
+      discountAmount: clampedDiscount,
       paidAmount: paidAmount,
       khataAmount: khataAmount,
       paymentMethod: paymentMethod,

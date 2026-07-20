@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/item_action_sheet.dart';
 import '../widgets/item_photo_widget.dart';
+import 'bulk_restock_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   final int refreshKey;
@@ -79,6 +80,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
           return a.quantity.compareTo(b.quantity);
         case 'price':
           return b.sellingPrice.compareTo(a.sellingPrice);
+        case 'margin':
+          double marginOf(Item i) => i.sellingPrice > 0
+              ? (i.sellingPrice - i.purchasePrice) / i.sellingPrice
+              : 0;
+          return marginOf(b).compareTo(marginOf(a));
         default:
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       }
@@ -140,6 +146,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ],
                           ),
                         ),
+                        GestureDetector(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const BulkRestockScreen()),
+                            );
+                            _loadItems();
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.paperDark,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: const Icon(Symbols.add_box,
+                                size: 20, color: AppColors.ink),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => _navigateToAddItem(context),
                           child: Container(
@@ -261,6 +289,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             selected: _sortBy == 'price',
                             onTap: () {
                               setState(() => _sortBy = 'price');
+                              _filterItems();
+                            }),
+                        const SizedBox(width: 8),
+                        _SortChip(
+                            label: 'Margin',
+                            selected: _sortBy == 'margin',
+                            onTap: () {
+                              setState(() => _sortBy = 'margin');
                               _filterItems();
                             }),
                       ],
@@ -394,6 +430,44 @@ class _StatTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Margin badge ──────────────────────────────────────────────────────────────
+
+class _MarginBadge extends StatelessWidget {
+  final Item item;
+  const _MarginBadge({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    if (item.sellingPrice <= 0) {
+      return Text('—', style: instrument(fontSize: 10.5, color: AppColors.mutedLight));
+    }
+    final pct =
+        (item.sellingPrice - item.purchasePrice) / item.sellingPrice * 100;
+    final Color bg;
+    final Color text;
+    if (pct >= 25) {
+      bg = AppColors.greenLight;
+      text = AppColors.greenDark;
+    } else if (pct >= 10) {
+      bg = AppColors.amberLight;
+      text = AppColors.amberDark;
+    } else {
+      bg = AppColors.redLight;
+      text = AppColors.red;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+          color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(
+        '${pct.toStringAsFixed(0)}%',
+        style: instrument(
+            fontSize: 10.5, fontWeight: FontWeight.w600, color: text),
       ),
     );
   }
@@ -552,9 +626,8 @@ class _InventoryItemCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.green),
                   ),
-                  const SizedBox(height: 2),
-                  Text('manage',
-                      style: instrument(fontSize: 10.5, color: AppColors.mutedLight)),
+                  const SizedBox(height: 4),
+                  _MarginBadge(item: item),
                 ],
               ),
             ],

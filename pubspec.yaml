@@ -38,11 +38,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.3
 
 flutter_native_splash:
-  color: "#0D9488"
-  image: assets/images/kamaae_splash_logo.png
-  android_12:
-    color: "#0D9488"
-    image: assets/images/kamaae_splash_logo.png
+  color: "#17140E"
   android: true
   ios: false
   web: false
@@ -50,12 +46,13 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: assets/images/kamaae_splash_logo.png
-  adaptive_icon_background: "#0D9488"
-  adaptive_icon_foreground: assets/images/kamaae_splash_logo.png
-  adaptive_icon_foreground_inset: 0
+  image_path: assets/images/kamaae_icon.png
+  adaptive_icon_background: "#17140E"
+  adaptive_icon_foreground: assets/images/kamaae_icon.png
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/kamaae_splash_logo.png
+    - assets/images/kamaae_icon.png
+    - assets/images/kamaae_logo_paper.png

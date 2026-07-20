@@ -82,6 +82,27 @@ class KhataService {
     return total;
   }
 
+  /// Returns all entries since the last time the running balance hit zero.
+  /// If the balance never hit zero, returns all entries.
+  Future<List<KhataEntry>> getEntriesSinceLastSettlement(int customerId) async {
+    final db = await _db;
+    final rows = await db.query(
+      'khata_entries',
+      where: 'customer_id = ?',
+      whereArgs: [customerId],
+      orderBy: 'timestamp ASC',
+    );
+    final allEntries = rows.map((r) => KhataEntry.fromMap(r)).toList();
+    double runningBalance = 0;
+    int lastZeroIndex = -1;
+    for (int i = 0; i < allEntries.length; i++) {
+      final e = allEntries[i];
+      runningBalance += e.type == KhataEntryType.credit ? e.amount : -e.amount;
+      if (runningBalance <= 0) lastZeroIndex = i;
+    }
+    return allEntries.sublist(lastZeroIndex + 1);
+  }
+
   Future<double> getBalance(int customerId) async {
     final db = await _db;
     final rows = await db.rawQuery(

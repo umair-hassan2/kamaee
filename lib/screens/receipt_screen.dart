@@ -238,6 +238,21 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           const SizedBox(height: 12),
                           const Divider(color: AppColors.border, height: 1),
                           const SizedBox(height: 12),
+                          if (widget.sale.discountAmount > 0) ...[
+                            _ReceiptSplitRow(
+                              label: 'Subtotal',
+                              value: formatPkr(widget.sale.totalAmount +
+                                  widget.sale.discountAmount),
+                              color: AppColors.muted,
+                            ),
+                            const SizedBox(height: 6),
+                            _ReceiptSplitRow(
+                              label: 'Discount',
+                              value: '− ${formatPkr(widget.sale.discountAmount)}',
+                              color: AppColors.red,
+                            ),
+                            const SizedBox(height: 10),
+                          ],
                           Row(
                             children: [
                               Expanded(

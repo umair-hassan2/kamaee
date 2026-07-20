@@ -30,19 +30,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   PaymentMethod _method = PaymentMethod.cash;
   final _paidController = TextEditingController();
+  final _discountController = TextEditingController();
+  bool _isPercent = true;
   bool _isLoading = false;
 
   List<Customer> _customers = [];
   Customer? _selectedCustomer;
   bool _customersLoaded = false;
 
+  double get _discountAmount {
+    final raw = double.tryParse(_discountController.text) ?? 0;
+    if (raw <= 0) return 0;
+    if (_isPercent) return (raw / 100 * widget.total).clamp(0.0, widget.total);
+    return raw.clamp(0.0, widget.total);
+  }
+
+  double get _effectiveTotal => widget.total - _discountAmount;
+
   double get _paid {
-    if (_method == PaymentMethod.cash) return widget.total;
+    if (_method == PaymentMethod.cash) return _effectiveTotal;
     if (_method == PaymentMethod.khata) return 0;
     return double.tryParse(_paidController.text) ?? 0;
   }
 
-  double get _khata => (widget.total - _paid).clamp(0.0, widget.total);
+  double get _khata => (_effectiveTotal - _paid).clamp(0.0, _effectiveTotal);
 
   bool get _needsCustomer =>
       _method == PaymentMethod.khata || _method == PaymentMethod.partial;
@@ -51,7 +62,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_needsCustomer && _selectedCustomer == null) return false;
     if (_method == PaymentMethod.partial) {
       final paid = double.tryParse(_paidController.text) ?? 0;
-      return paid > 0 && paid < widget.total;
+      return paid > 0 && paid < _effectiveTotal;
     }
     return true;
   }
@@ -59,6 +70,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _paidController.dispose();
+    _discountController.dispose();
     super.dispose();
   }
 
@@ -176,6 +188,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         paymentMethod: _method,
         paidAmount: _paid,
         customerId: _selectedCustomer?.id,
+        discountAmount: _discountAmount,
       );
       if (!mounted) return;
       await Navigator.pushReplacement(
@@ -274,6 +287,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         ),
+                        if (_discountAmount > 0) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text('Subtotal',
+                                    style: instrument(
+                                        fontSize: 13, color: AppColors.muted)),
+                              ),
+                              Text(
+                                formatPkr(widget.total),
+                                style: mono(
+                                    fontSize: 13, color: AppColors.muted),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text('Discount',
+                                    style: instrument(
+                                        fontSize: 13, color: AppColors.red)),
+                              ),
+                              Text(
+                                '− ${formatPkr(_discountAmount)}',
+                                style: mono(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.red),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         const Divider(color: AppColors.borderDark, height: 1),
                         const SizedBox(height: 12),
@@ -287,7 +334,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       color: AppColors.ink)),
                             ),
                             Text(
-                              formatPkr(widget.total),
+                              formatPkr(_effectiveTotal),
                               style: mono(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
@@ -298,6 +345,73 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // ── Discount ─────────────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _discountAmount > 0
+                            ? AppColors.green
+                            : AppColors.border,
+                        width: _discountAmount > 0 ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _DiscountToggle(
+                          label: '%',
+                          selected: _isPercent,
+                          onTap: () => setState(() => _isPercent = true),
+                        ),
+                        const SizedBox(width: 6),
+                        _DiscountToggle(
+                          label: 'PKR',
+                          selected: !_isPercent,
+                          onTap: () => setState(() => _isPercent = false),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _discountController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'^\d*\.?\d{0,2}')),
+                            ],
+                            style: mono(
+                                fontSize: 15, fontWeight: FontWeight.w600),
+                            decoration: InputDecoration(
+                              hintText:
+                                  _isPercent ? 'Discount %' : 'Discount amt',
+                              hintStyle: instrument(
+                                  fontSize: 13,
+                                  color: AppColors.mutedLight),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                              filled: false,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        if (_discountAmount > 0)
+                          Text(
+                            '− ${formatPkr(_discountAmount)}',
+                            style: instrument(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.red),
+                          ),
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 22),
 
                   Text(
@@ -510,9 +624,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             )
                           : Text(
                               _method == PaymentMethod.cash
-                                  ? 'Confirm Sale · ${formatPkr(widget.total)}'
+                                  ? 'Confirm Sale · ${formatPkr(_effectiveTotal)}'
                                   : _method == PaymentMethod.khata
-                                      ? 'Record on Khata · ${formatPkr(widget.total)}'
+                                      ? 'Record on Khata · ${formatPkr(_effectiveTotal)}'
                                       : 'Confirm · ${formatPkr(_paid)} now + ${formatPkr(_khata)} khata',
                               style: instrument(
                                   fontSize: 16,
@@ -661,6 +775,42 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+// ── Discount toggle chip ──────────────────────────────────────────────────────
+
+class _DiscountToggle extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DiscountToggle({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.ink : AppColors.paperDark,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: instrument(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.paper : AppColors.muted,
+          ),
+        ),
       ),
     );
   }
