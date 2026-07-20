@@ -59,7 +59,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
             .updateItem(item.copyWith(id: id, photoPath: photoPath));
       }
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context, item.copyWith(id: id, photoPath: photoPath));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

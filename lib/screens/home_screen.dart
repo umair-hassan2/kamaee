@@ -8,6 +8,7 @@ import '../services/cash_register_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import 'barcode_scanner_screen.dart';
+import 'bulk_restock_scanner_screen.dart';
 import 'cash_register_screen.dart';
 import 'sales_history_screen.dart';
 import 'settings_screen.dart';
@@ -73,6 +74,67 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => BarcodeScannerScreen(mode: mode)),
     );
     await _loadData();
+  }
+
+  Future<void> _startBulkRestock() async {
+    final mode = await showModalBottomSheet<BulkScanMode>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('Bulk Restock',
+                  style: bricolage(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('Choose your scanning method',
+                  style: instrument(fontSize: 13, color: AppColors.muted)),
+              const SizedBox(height: 20),
+              _ScanModeOption(
+                icon: Symbols.barcode_scanner,
+                label: 'Scan Barcodes',
+                subtitle: 'EAN-13, Code128, UPC and more',
+                onTap: () => Navigator.pop(ctx, BulkScanMode.barcode),
+              ),
+              const SizedBox(height: 10),
+              _ScanModeOption(
+                icon: Symbols.qr_code_scanner,
+                label: 'Scan QR Codes',
+                subtitle: 'Standard QR codes',
+                onTap: () => Navigator.pop(ctx, BulkScanMode.qr),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (mode != null && mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BulkRestockScannerScreen(mode: mode),
+        ),
+      );
+      await _loadData();
+    }
   }
 
   Future<void> _navigateToCashRegister() async {
@@ -339,6 +401,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  _BulkRestockCard(onTap: _startBulkRestock),
                   const SizedBox(height: 20),
                   _InventoryStrip(
                     itemCount: _itemCount,
@@ -541,6 +605,130 @@ class _ActionCard extends StatelessWidget {
               ),
             ],
           ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Bulk restock card ─────────────────────────────────────────────────────────
+
+class _BulkRestockCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BulkRestockCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.blueLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Symbols.inventory_2,
+                    size: 20, color: AppColors.blue),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Bulk Restock',
+                        style: instrument(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink)),
+                    const SizedBox(height: 1),
+                    Text('Scan to build a restock list, then confirm',
+                        style:
+                            instrument(fontSize: 11.5, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+              const Icon(Symbols.chevron_right,
+                  size: 18, color: AppColors.mutedLight),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Scan mode option (inside bottom sheet) ────────────────────────────────────
+
+class _ScanModeOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ScanModeOption({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.paper,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.greenLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: AppColors.green, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: instrument(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: instrument(
+                            fontSize: 12, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+              const Icon(Symbols.arrow_forward,
+                  size: 18, color: AppColors.mutedLight),
+            ],
           ),
         ),
       ),
