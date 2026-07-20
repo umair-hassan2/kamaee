@@ -5,26 +5,27 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../database_helper.dart';
-import '../models/item.dart';
-import '../services/cart_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/camera_image_utils.dart';
-import '../widgets/item_action_sheet.dart';
 import 'add_item_screen.dart';
-import 'cart_screen.dart';
+import 'bulk_restock_confirm_screen.dart';
 
-enum ScanMode { barcode, qr }
+enum BulkScanMode { barcode, qr }
 
-class BarcodeScannerScreen extends StatefulWidget {
-  final ScanMode mode;
+class BulkRestockScannerScreen extends StatefulWidget {
+  final BulkScanMode mode;
 
-  const BarcodeScannerScreen({super.key, this.mode = ScanMode.barcode});
+  const BulkRestockScannerScreen({
+    super.key,
+    this.mode = BulkScanMode.barcode,
+  });
 
   @override
-  State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
+  State<BulkRestockScannerScreen> createState() =>
+      _BulkRestockScannerScreenState();
 }
 
-class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
+class _BulkRestockScannerScreenState extends State<BulkRestockScannerScreen> {
   static const _scanInterval = Duration(milliseconds: 300);
 
   CameraController? _cameraController;
@@ -35,7 +36,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   DateTime? _lastScanTime;
   int _warmupFrames = 3;
 
-  bool get _isQrMode => widget.mode == ScanMode.qr;
+  // Keyed by item.id so duplicate scans increment qty
+  final Map<int, RestockEntry> _entries = {};
+
+  bool get _isQrMode => widget.mode == BulkScanMode.qr;
 
   List<BarcodeFormat> get _scanFormats => _isQrMode
       ? [BarcodeFormat.qrCode]
@@ -117,7 +121,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       }
 
       final barcodes = await _barcodeScanner!.processImage(inputImage);
-      if (!mounted) return;
+      if (!mounted) {
+        _isProcessing = false;
+        return;
+      }
 
       if (barcodes.isEmpty) {
         _isProcessing = false;
@@ -133,138 +140,51 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       if (_cameraController?.value.isStreamingImages ?? false) {
         await _cameraController!.stopImageStream();
       }
-      await _handleBarcodeDetected(barcodeValue);
-    } catch (e) {
+      await _handleScan(barcodeValue);
+    } catch (_) {
       _isProcessing = false;
     }
   }
 
-  Future<void> _handleBarcodeDetected(String barcodeValue) async {
+  Future<void> _handleScan(String barcodeValue) async {
     if (!mounted) return;
 
-    final db = DatabaseHelper();
-    final item = await db.getItemByBarcode(barcodeValue);
-
+    final item = await DatabaseHelper().getItemByBarcode(barcodeValue);
     if (!mounted) return;
 
     if (item == null) {
-      final result = await Navigator.push(
+      // Unknown item — let user fill in details, then add to list
+      final newItem = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => AddItemScreen(barcode: barcodeValue),
         ),
       );
-      if (mounted) Navigator.pop(context, result);
+      if (!mounted) return;
+      if (newItem != null) {
+        // Initial qty set in AddItemScreen IS the restock — don't double-count
+        _showFeedback('✓ ${newItem.name} added to inventory');
+      }
     } else {
-      await _showItemActions(item);
+      if (_entries.containsKey(item.id!)) {
+        _showFeedback('${item.name} already in list');
+      } else {
+        setState(() => _entries[item.id!] = RestockEntry(item: item, qty: 1));
+        _showFeedback('✓ ${item.name}');
+      }
     }
+
+    _resumeScanning();
   }
 
-  Future<void> _showItemActions(Item item) async {
+  void _showFeedback(String message) {
     if (!mounted) return;
-
-    await showItemActionSheet(
-      context: context,
-      item: item,
-      showAddToCart: true,
-      onDone: () {
-        Navigator.pop(context);
-        _showAfterActionPrompt();
-      },
-      onCancel: () {
-        Navigator.pop(context);
-        _resumeScanning();
-      },
-    );
-  }
-
-  Future<void> _showAfterActionPrompt() async {
-    if (!mounted) return;
-
-    final cartCount = CartService().cartCount.value;
-
-    await showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: AppColors.greenLight,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Symbols.check,
-                    color: AppColors.green, size: 30),
-              ),
-              const SizedBox(height: 12),
-              Text('Done!',
-                  textAlign: TextAlign.center,
-                  style: bricolage(fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Text('What would you like to do next?',
-                  textAlign: TextAlign.center,
-                  style: instrument(fontSize: 14, color: AppColors.muted)),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _resumeScanning();
-                },
-                icon: Icon(_isQrMode
-                    ? Symbols.qr_code_2
-                    : Symbols.barcode_scanner),
-                label: const Text('Scan Next Item'),
-              ),
-              if (cartCount > 0) ...[
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const CartScreen()),
-                    );
-                    if (mounted) Navigator.pop(context);
-                  },
-                  icon: const Icon(Symbols.shopping_cart),
-                  label: Text('View Cart ($cartCount items)'),
-                ),
-              ],
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Symbols.home),
-                label: const Text('Finish'),
-              ),
-            ],
-          ),
-        ),
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(milliseconds: 1400),
+        backgroundColor: AppColors.ink,
       ),
     );
   }
@@ -279,6 +199,31 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       _cameraController!
           .startImageStream(_processCameraImage)
           .catchError((_) => _isProcessing = false);
+    }
+  }
+
+  Future<void> _openReview() async {
+    if (_entries.isEmpty) return;
+
+    if (_cameraController?.value.isStreamingImages ?? false) {
+      await _cameraController!.stopImageStream();
+    }
+    if (!mounted) return;
+
+    final confirmed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            BulkRestockConfirmScreen(entries: _entries.values.toList()),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (confirmed == true) {
+      Navigator.pop(context);
+    } else {
+      _resumeScanning();
     }
   }
 
@@ -297,6 +242,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final count = _entries.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0B0C),
@@ -304,6 +250,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         children: [
           _buildBody(),
 
+          // Header overlay
           Positioned(
             top: 0,
             left: 0,
@@ -324,65 +271,43 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     child: const Icon(Symbols.arrow_back,
                         size: 24, color: Colors.white),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      _isQrMode ? 'Scan QR Code' : 'Scan Barcode',
+                      _isQrMode ? 'Bulk Restock — QR' : 'Bulk Restock — Barcode',
                       style: bricolage(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: Colors.white),
                     ),
                   ),
-                  ValueListenableBuilder<int>(
-                    valueListenable: CartService().cartCount,
-                    builder: (_, count, __) {
-                      if (count == 0) return const SizedBox.shrink();
-                      return GestureDetector(
-                        onTap: () async {
-                          if (_cameraController?.value.isStreamingImages ??
-                              false) {
-                            await _cameraController!.stopImageStream();
-                          }
-                          if (!mounted) return;
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const CartScreen()),
-                          );
-                          if (mounted) Navigator.pop(context);
-                        },
-                        child: Stack(
-                          clipBehavior: Clip.none,
+                  if (count > 0)
+                    GestureDetector(
+                      onTap: _openReview,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.green,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Symbols.shopping_cart,
-                                size: 24, color: Colors.white),
-                            Positioned(
-                              top: -6,
-                              right: -8,
-                              child: Container(
-                                width: 18,
-                                height: 18,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.green,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '$count',
-                                    style: mono(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white),
-                                  ),
-                                ),
-                              ),
+                            Text(
+                              'Review $count',
+                              style: instrument(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white),
                             ),
+                            const SizedBox(width: 4),
+                            const Icon(Symbols.arrow_forward,
+                                size: 15, color: Colors.white),
                           ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -402,11 +327,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             children: [
               const Icon(Symbols.error, color: AppColors.red, size: 64),
               const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: instrument(fontSize: 16, color: Colors.white),
-              ),
+              Text(_errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: instrument(fontSize: 16, color: Colors.white)),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => openAppSettings(),
@@ -420,8 +343,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
     if (!_isCameraInitialized || _cameraController == null) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      );
+          child: CircularProgressIndicator(color: Colors.white));
     }
 
     return Stack(

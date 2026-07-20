@@ -18,12 +18,15 @@ class ItemActionSheet extends StatefulWidget {
   /// When true, shows "Add to Cart" alongside "Sell" for multi-item sessions.
   final bool showAddToCart;
 
+  final ItemActionMode defaultMode;
+
   const ItemActionSheet({
     super.key,
     required this.item,
     required this.onDone,
     required this.onCancel,
     this.showAddToCart = false,
+    this.defaultMode = ItemActionMode.sell,
   });
 
   @override
@@ -35,7 +38,7 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
   final _settingsService = SettingsService();
   final _cartService = CartService();
   final _quantityController = TextEditingController(text: '1');
-  ItemActionMode _mode = ItemActionMode.sell;
+  late ItemActionMode _mode;
   int _quantity = 1;
   bool _isLoading = false;
 
@@ -48,8 +51,10 @@ class _ItemActionSheetState extends State<ItemActionSheet> {
   @override
   void initState() {
     super.initState();
-    if (!_canSell) {
+    if (!_canSell || widget.defaultMode == ItemActionMode.restock) {
       _mode = ItemActionMode.restock;
+    } else {
+      _mode = ItemActionMode.sell;
     }
   }
 
@@ -520,6 +525,7 @@ Future<void> showItemActionSheet({
   required VoidCallback onDone,
   required VoidCallback onCancel,
   bool showAddToCart = false,
+  ItemActionMode defaultMode = ItemActionMode.sell,
 }) {
   return showModalBottomSheet(
     context: context,
@@ -533,6 +539,7 @@ Future<void> showItemActionSheet({
       onDone: onDone,
       onCancel: onCancel,
       showAddToCart: showAddToCart,
+      defaultMode: defaultMode,
     ),
   );
 }
