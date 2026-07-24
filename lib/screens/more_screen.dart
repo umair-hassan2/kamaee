@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../services/cash_register_service.dart';
+import '../services/daily_report_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/whatsapp_share.dart';
 import 'cash_register_screen.dart';
 import 'finance_screen.dart';
 import 'sales_history_screen.dart';
@@ -18,6 +20,7 @@ class MoreScreen extends StatefulWidget {
 class _MoreScreenState extends State<MoreScreen> {
   final _settings = SettingsService();
   final _cashRegisterService = CashRegisterService();
+  final _reportService = DailyReportService();
   bool _registerOpen = false;
 
   @override
@@ -36,6 +39,26 @@ class _MoreScreenState extends State<MoreScreen> {
     if (mounted) {
       setState(() {});
       await _checkRegister();
+    }
+  }
+
+  Future<void> _sendDailyReport() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Generating report…'),
+        duration: Duration(seconds: 10),
+      ),
+    );
+    try {
+      final text = await _reportService.generateTodayReport();
+      messenger.hideCurrentSnackBar();
+      await WhatsAppShare.share(text);
+    } catch (_) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Failed to generate report')),
+      );
     }
   }
 
@@ -107,6 +130,14 @@ class _MoreScreenState extends State<MoreScreen> {
                     label: 'Sales History',
                     subtitle: 'Browse all past sales & bills',
                     onTap: () => _push(const SalesHistoryScreen()),
+                  ),
+                  _MenuEntry(
+                    icon: Symbols.send,
+                    iconBg: AppColors.greenLight,
+                    iconColor: AppColors.green,
+                    label: 'Daily WhatsApp Report',
+                    subtitle: "Share today's summary on WhatsApp",
+                    onTap: _sendDailyReport,
                   ),
                 ]),
                 const SizedBox(height: 20),
