@@ -6,6 +6,7 @@ import '../models/sale.dart';
 import '../services/khata_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import 'barcode_scanner_screen.dart';
 import 'sale_detail_screen.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
@@ -65,9 +66,33 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                         size: 24, color: AppColors.ink),
                   ),
                   const SizedBox(width: 8),
-                  Text('Sales History',
-                      style: bricolage(
-                          fontSize: 20, fontWeight: FontWeight.w700)),
+                  Expanded(
+                    child: Text('Sales History',
+                        style: bricolage(
+                            fontSize: 20, fontWeight: FontWeight.w700)),
+                  ),
+                  GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BarcodeScannerScreen(
+                              mode: ScanMode.bill),
+                        ),
+                      );
+                      _loadData();
+                    },
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.greenLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Symbols.barcode_scanner,
+                          size: 20, color: AppColors.green),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -261,6 +286,24 @@ class _SaleHistoryTile extends StatelessWidget {
                             '${formatPkr(sale.khataAmount)} on khata',
                             style:
                                 mono(fontSize: 11, color: AppColors.amber),
+                          ),
+                        ],
+                        if (sale.isReturned) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.redLight,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Returned',
+                              style: instrument(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.red),
+                            ),
                           ),
                         ],
                       ],

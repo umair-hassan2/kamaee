@@ -1,4 +1,4 @@
-enum TransactionType { sell, restock }
+enum TransactionType { sell, restock, return_ }
 
 class SaleTransaction {
   final int? id;

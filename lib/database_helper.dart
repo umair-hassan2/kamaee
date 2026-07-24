@@ -34,7 +34,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -87,6 +87,11 @@ class DatabaseHelper {
         'ALTER TABLE sales ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0',
       );
     }
+    if (oldVersion < 8) {
+      await db.execute(
+        'ALTER TABLE sales ADD COLUMN is_returned INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   Future<void> _createSalesTable(Database db) async {
@@ -101,6 +106,7 @@ class DatabaseHelper {
       'payment_method TEXT NOT NULL DEFAULT "cash", '
       'status TEXT NOT NULL DEFAULT "draft", '
       'timestamp INTEGER NOT NULL, '
+      'is_returned INTEGER NOT NULL DEFAULT 0, '
       'FOREIGN KEY (customer_id) REFERENCES customers(id)'
       ')',
     );
@@ -425,6 +431,78 @@ class DatabaseHelper {
       orderBy: 'timestamp DESC',
     );
     return rows.map((r) => Sale.fromMap(r)).toList();
+  }
+
+  Future<Sale?> getSaleById(int id) async {
+    final db = await database;
+    final rows = await db.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
+    if (rows.isEmpty) return null;
+    return Sale.fromMap(rows.first);
+  }
+
+  Future<void> processReturn({
+    required int saleId,
+    required int? customerId,
+    required double saleTotal,
+    required double saleKhata,
+    required List<SaleTransaction> items,
+    required Map<int, int> returnQuantities,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      for (final item in items) {
+        final returnQty = returnQuantities[item.itemId] ?? 0;
+        if (returnQty <= 0) continue;
+
+        await txn.rawUpdate(
+          'UPDATE items SET quantity = quantity + ? WHERE id = ?',
+          [returnQty, item.itemId],
+        );
+
+        await txn.insert('transactions', {
+          'item_id': item.itemId,
+          'item_name': item.itemName,
+          'type': TransactionType.return_.name,
+          'quantity': returnQty,
+          'unit_cost': item.unitCost,
+          'unit_price': item.unitPrice,
+          'revenue': -(item.unitPrice * returnQty),
+          'cost': -(item.unitCost * returnQty),
+          'profit': -((item.unitPrice - item.unitCost) * returnQty),
+          'timestamp': now,
+          'sale_id': saleId,
+        });
+      }
+
+      // Proportional khata reduction
+      if (customerId != null && saleKhata > 0 && saleTotal > 0) {
+        double returnTotal = 0;
+        for (final item in items) {
+          final qty = returnQuantities[item.itemId] ?? 0;
+          returnTotal += item.unitPrice * qty;
+        }
+        final khataCredit = (returnTotal / saleTotal) * saleKhata;
+        if (khataCredit > 0) {
+          await txn.insert('khata_entries', {
+            'customer_id': customerId,
+            'type': 'payment',
+            'amount': khataCredit,
+            'note': 'Return — Sale #$saleId',
+            'timestamp': now,
+            'sale_id': saleId,
+          });
+        }
+      }
+
+      await txn.update(
+        'sales',
+        {'is_returned': 1},
+        where: 'id = ?',
+        whereArgs: [saleId],
+      );
+    });
   }
 
   Future<List<Sale>> getCompletedSalesBetween(DateTime start, DateTime end) async {

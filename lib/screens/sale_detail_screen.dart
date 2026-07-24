@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../database_helper.dart';
@@ -11,6 +12,7 @@ import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/receipt_pdf_generator.dart';
+import 'return_screen.dart';
 
 class SaleDetailScreen extends StatefulWidget {
   final Sale sale;
@@ -29,6 +31,7 @@ class SaleDetailScreen extends StatefulWidget {
 class _SaleDetailScreenState extends State<SaleDetailScreen> {
   final _db = DatabaseHelper();
   final _khataService = KhataService();
+  late Sale _sale;
   List<SaleTransaction> _items = [];
   String? _resolvedCustomerName;
   bool _isLoading = true;
@@ -37,20 +40,23 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _sale = widget.sale;
     _resolvedCustomerName = widget.customerName;
     _loadData();
   }
 
   Future<void> _loadData() async {
-    final items = await _db.getTransactionsForSale(widget.sale.id!);
+    final items = await _db.getTransactionsForSale(_sale.id!);
+    final freshSale = await _db.getSaleById(_sale.id!);
     String? customerName = _resolvedCustomerName;
-    if (customerName == null && widget.sale.customerId != null) {
+    if (customerName == null && _sale.customerId != null) {
       final customer =
-          await _khataService.getCustomerById(widget.sale.customerId!);
+          await _khataService.getCustomerById(_sale.customerId!);
       customerName = customer?.name;
     }
     if (mounted) {
       setState(() {
+        if (freshSale != null) _sale = freshSale;
         _items = items;
         _resolvedCustomerName = customerName;
         _isLoading = false;
@@ -63,13 +69,13 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
     try {
       final shopName = SettingsService().settings.shopName;
       final pdfBytes = await ReceiptPdfGenerator.generate(
-        sale: widget.sale,
+        sale: _sale,
         items: _items,
         customerName: _resolvedCustomerName,
         shopName: shopName.isNotEmpty ? shopName : 'Kamaae',
       );
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/receipt_${widget.sale.id}.pdf');
+      final file = File('${dir.path}/receipt_${_sale.id}.pdf');
       await file.writeAsBytes(pdfBytes);
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'application/pdf')],
@@ -92,13 +98,13 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(widget.sale.timestamp);
+    final dt = DateTime.fromMillisecondsSinceEpoch(_sale.timestamp);
     final dateStr = DateFormat('d MMM yyyy, h:mm a').format(dt);
 
     Color methodColor;
     IconData methodIcon;
     String methodLabel;
-    switch (widget.sale.paymentMethod) {
+    switch (_sale.paymentMethod) {
       case PaymentMethod.cash:
         methodColor = AppColors.sell;
         methodIcon = Icons.payments_outlined;
@@ -115,7 +121,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sale #${widget.sale.id}'),
+        title: Text('Sale #${_sale.id}'),
         actions: [
           if (_sharing)
             const Padding(
@@ -177,25 +183,53 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                           ),
                         ],
                         const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: methodColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(methodIcon, size: 14, color: methodColor),
-                              const SizedBox(width: 6),
-                              Text(methodLabel,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: methodColor)),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: methodColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(methodIcon, size: 14, color: methodColor),
+                                  const SizedBox(width: 6),
+                                  Text(methodLabel,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: methodColor)),
+                                ],
+                              ),
+                            ),
+                            if (_sale.isReturned) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.redLight,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Symbols.assignment_return,
+                                        size: 13, color: AppColors.red),
+                                    const SizedBox(width: 5),
+                                    Text('Returned',
+                                        style: instrument(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.red)),
+                                  ],
+                                ),
+                              ),
                             ],
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -250,37 +284,37 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                           ),
                         ),
                         const Divider(height: 24),
-                        if (widget.sale.discountAmount > 0) ...[
+                        if (_sale.discountAmount > 0) ...[
                           _Row(
                               label: 'Subtotal',
-                              value: formatPkr(widget.sale.totalAmount +
-                                  widget.sale.discountAmount),
+                              value: formatPkr(_sale.totalAmount +
+                                  _sale.discountAmount),
                               color: AppColors.muted),
                           const SizedBox(height: 6),
                           _Row(
                               label: 'Discount',
-                              value: '− ${formatPkr(widget.sale.discountAmount)}',
+                              value: '− ${formatPkr(_sale.discountAmount)}',
                               color: AppColors.danger),
                           const SizedBox(height: 6),
                         ],
                         _Row(
                             label: 'Total',
-                            value: formatPkr(widget.sale.totalAmount),
+                            value: formatPkr(_sale.totalAmount),
                             bold: true),
-                        if (widget.sale.paidAmount > 0 &&
-                            widget.sale.paymentMethod !=
+                        if (_sale.paidAmount > 0 &&
+                            _sale.paymentMethod !=
                                 PaymentMethod.cash) ...[
                           const SizedBox(height: 6),
                           _Row(
                               label: 'Paid',
-                              value: formatPkr(widget.sale.paidAmount),
+                              value: formatPkr(_sale.paidAmount),
                               color: AppColors.sell),
                         ],
-                        if (widget.sale.khataAmount > 0) ...[
+                        if (_sale.khataAmount > 0) ...[
                           const SizedBox(height: 6),
                           _Row(
                               label: 'On Khata',
-                              value: formatPkr(widget.sale.khataAmount),
+                              value: formatPkr(_sale.khataAmount),
                               color: AppColors.warning),
                         ],
                       ],
@@ -305,6 +339,35 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                       foregroundColor: AppColors.primary,
                     ),
                   ),
+
+                  if (!_sale.isReturned) ...[
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ReturnScreen(
+                                    sale: _sale,
+                                    items: _items,
+                                    customerName: _resolvedCustomerName,
+                                  ),
+                                ),
+                              );
+                              _loadData();
+                            },
+                      icon: const Icon(Symbols.assignment_return),
+                      label: const Text('Process Return'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        side: BorderSide(
+                            color: AppColors.amber.withValues(alpha: 0.5)),
+                        foregroundColor: AppColors.amber,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
