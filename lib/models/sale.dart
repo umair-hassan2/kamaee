@@ -12,6 +12,7 @@ class Sale {
   final PaymentMethod paymentMethod;
   final SaleStatus status;
   final int timestamp;
+  final bool isReturned;
 
   const Sale({
     this.id,
@@ -23,6 +24,7 @@ class Sale {
     required this.paymentMethod,
     required this.status,
     required this.timestamp,
+    this.isReturned = false,
   });
 
   Sale copyWith({
@@ -35,6 +37,7 @@ class Sale {
     PaymentMethod? paymentMethod,
     SaleStatus? status,
     int? timestamp,
+    bool? isReturned,
   }) {
     return Sale(
       id: id ?? this.id,
@@ -46,6 +49,7 @@ class Sale {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
+      isReturned: isReturned ?? this.isReturned,
     );
   }
 
@@ -59,6 +63,7 @@ class Sale {
         'payment_method': paymentMethod.name,
         'status': status.name,
         'timestamp': timestamp,
+        'is_returned': isReturned ? 1 : 0,
       };
 
   factory Sale.fromMap(Map<String, dynamic> map) => Sale(
@@ -71,5 +76,6 @@ class Sale {
         paymentMethod: PaymentMethod.values.byName(map['payment_method'] as String),
         status: SaleStatus.values.byName(map['status'] as String),
         timestamp: map['timestamp'] as int,
+        isReturned: (map['is_returned'] as int? ?? 0) == 1,
       );
 }

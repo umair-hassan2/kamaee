@@ -337,12 +337,16 @@ class ReceiptPdfGenerator {
 
             pw.Spacer(),
 
-            // ── Barcode decoration ──────────────────────────────────────────
+            // ── Scannable bill barcode ──────────────────────────────────────
             pw.Container(
               margin: const pw.EdgeInsets.fromLTRB(22, 14, 22, 0),
               height: 36,
-              child: pw.Row(
-                children: _barcodeStripes(),
+              child: pw.BarcodeWidget(
+                barcode: pw.Barcode.code128(),
+                data: 'KAM:$billNum',
+                drawText: false,
+                color: _ink,
+                backgroundColor: _paper,
               ),
             ),
             pw.Container(
@@ -412,17 +416,4 @@ class ReceiptPdfGenerator {
   }
 
   // Simple barcode-style decorative stripes using the design's pattern
-  static List<pw.Widget> _barcodeStripes() {
-    // Widths from the design HTML: 2,1,1,2,3,1,1,1,2,2,1,1,3,1,2,1,1,2,1,3
-    final pattern = [2, 1, 1, 2, 3, 1, 1, 1, 2, 2, 1, 1, 3, 1, 2, 1, 1, 2, 1, 3];
-    final widgets = <pw.Widget>[];
-    for (var i = 0; i < pattern.length; i++) {
-      widgets.add(pw.Expanded(
-        flex: pattern[i],
-        child: pw.Container(
-            color: i.isEven ? _ink : PdfColors.white),
-      ));
-    }
-    return widgets;
-  }
 }

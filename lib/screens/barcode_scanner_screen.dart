@@ -12,8 +12,9 @@ import '../utils/camera_image_utils.dart';
 import '../widgets/item_action_sheet.dart';
 import 'add_item_screen.dart';
 import 'cart_screen.dart';
+import 'sale_detail_screen.dart';
 
-enum ScanMode { barcode, qr }
+enum ScanMode { barcode, qr, bill }
 
 class BarcodeScannerScreen extends StatefulWidget {
   final ScanMode mode;
@@ -36,16 +37,19 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   int _warmupFrames = 3;
 
   bool get _isQrMode => widget.mode == ScanMode.qr;
+  bool get _isBillMode => widget.mode == ScanMode.bill;
 
-  List<BarcodeFormat> get _scanFormats => _isQrMode
-      ? [BarcodeFormat.qrCode]
-      : [
-          BarcodeFormat.ean13,
-          BarcodeFormat.ean8,
-          BarcodeFormat.code128,
-          BarcodeFormat.code39,
-          BarcodeFormat.upca,
-        ];
+  List<BarcodeFormat> get _scanFormats {
+    if (_isQrMode) return [BarcodeFormat.qrCode];
+    if (_isBillMode) return [BarcodeFormat.code128];
+    return [
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.code128,
+      BarcodeFormat.code39,
+      BarcodeFormat.upca,
+    ];
+  }
 
   @override
   void initState() {
@@ -142,6 +146,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   Future<void> _handleBarcodeDetected(String barcodeValue) async {
     if (!mounted) return;
 
+    if (_isBillMode) {
+      await _handleBillBarcode(barcodeValue);
+      return;
+    }
+
     final db = DatabaseHelper();
     final item = await db.getItemByBarcode(barcodeValue);
 
@@ -158,6 +167,61 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     } else {
       await _showItemActions(item);
     }
+  }
+
+  Future<void> _handleBillBarcode(String value) async {
+    if (!mounted) return;
+
+    if (!value.startsWith('KAM:')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Invalid barcode — this doesn\'t look like a bill'),
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      _resumeScanning();
+      return;
+    }
+
+    final saleId = int.tryParse(value.substring(4));
+    if (saleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Invalid bill format — could not read bill ID'),
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      _resumeScanning();
+      return;
+    }
+
+    final db = DatabaseHelper();
+    final sale = await db.getSaleById(saleId);
+
+    if (!mounted) return;
+
+    if (sale == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sale #$saleId not found — bill may be from a different device'),
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      _resumeScanning();
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SaleDetailScreen(sale: sale)),
+    );
+    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _showItemActions(Item item) async {
@@ -327,7 +391,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _isQrMode ? 'Scan QR Code' : 'Scan Barcode',
+                      _isBillMode
+                          ? 'Scan Bill Barcode'
+                          : _isQrMode
+                              ? 'Scan QR Code'
+                              : 'Scan Barcode',
                       style: bricolage(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -337,7 +405,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   ValueListenableBuilder<int>(
                     valueListenable: CartService().cartCount,
                     builder: (_, count, __) {
-                      if (count == 0) return const SizedBox.shrink();
+                      if (_isBillMode || count == 0) return const SizedBox.shrink();
                       return GestureDetector(
                         onTap: () async {
                           if (_cameraController?.value.isStreamingImages ??
@@ -474,9 +542,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
-            _isQrMode
-                ? 'Align QR code within the frame to scan'
-                : 'Align barcode within the frame to scan',
+            _isBillMode
+                ? 'Align bill barcode within the frame to scan'
+                : _isQrMode
+                    ? 'Align QR code within the frame to scan'
+                    : 'Align barcode within the frame to scan',
             style: instrument(fontSize: 13.5, color: const Color(0xFFEFEDEA)),
           ),
         ),
