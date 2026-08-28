@@ -102,7 +102,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     if (_isProcessing) return;
     final now = DateTime.now();
     if (_lastScanTime != null &&
-        now.difference(_lastScanTime!) < _scanInterval) return;
+        now.difference(_lastScanTime!) < _scanInterval) {
+      return;
+    }
     _lastScanTime = now;
     _isProcessing = true;
     _scanFrame(image);
@@ -408,18 +410,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       if (_isBillMode || count == 0) return const SizedBox.shrink();
                       return GestureDetector(
                         onTap: () async {
+                          final navigator = Navigator.of(context);
                           if (_cameraController?.value.isStreamingImages ??
                               false) {
                             await _cameraController!.stopImageStream();
                           }
                           if (!mounted) return;
-                          await Navigator.push(
-                            context,
+                          await navigator.push(
                             MaterialPageRoute(
                                 builder: (_) => const CartScreen()),
                           );
-                          if (!mounted) return;
-                          Navigator.pop(context);
+                          navigator.pop();
                         },
                         child: Stack(
                           clipBehavior: Clip.none,
@@ -512,10 +513,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           height: _isQrMode ? 260 : 200,
           child: Stack(
             children: [
-              _Corner(top: true, left: true),
-              _Corner(top: true, left: false),
-              _Corner(top: false, left: true),
-              _Corner(top: false, left: false),
+              const _Corner(top: true, left: true),
+              const _Corner(top: true, left: false),
+              const _Corner(top: false, left: true),
+              const _Corner(top: false, left: false),
               Center(
                 child: Container(
                   height: 2,
@@ -597,7 +598,7 @@ class _CornerPainter extends CustomPainter {
       ..strokeCap = StrokeCap.square
       ..style = PaintingStyle.stroke;
 
-    final r = const Radius.circular(4);
+    const r = Radius.circular(4);
     final path = Path();
 
     if (top && left) {
