@@ -2,10 +2,10 @@ name: Daily README Update
 
 on:
   schedule:
-    # Twice a day — Mon, Tue, Fri (08:00 and 20:00 UTC = 1 AM PKT)
+    # Twice a day — Mon, Tue, Fri (08:00 UTC = 1 PM PKT, 20:00 UTC = 1 AM PKT)
     - cron: '0 8 * * 1,2,5'
     - cron: '0 20 * * 1,2,5'
-    # Thrice a day — Wed, Thu, Sat, Sun (06:00, 13:00, 20:00 UTC)
+    # Thrice a day — Wed, Thu, Sat, Sun (06:00 UTC = 11 AM PKT, 13:00 UTC = 6 PM PKT, 20:00 UTC = 1 AM PKT)
     - cron: '0 6 * * 0,3,4,6'
     - cron: '0 13 * * 0,3,4,6'
     - cron: '0 20 * * 0,3,4,6'
@@ -24,7 +24,7 @@ jobs:
       - name: Update README with today's date
         run: |
           DATE=$(date -u '+%Y-%m-%d')
-          LINE="Repo was updated automatically on $DATE"
+          LINE="Repo was updated automatically on $DATE [GH Actions]"
 
           # Remove any previous auto-update line, then append the new one
           grep -v "^Repo was updated automatically on" README.md > README.tmp
