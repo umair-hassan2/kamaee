@@ -153,7 +153,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       const SizedBox(height: 20),
 
                       // ── Product name ──────────────────────────────────
-                      _FieldLabel('Product name'),
+                      const _FieldLabel('Product name'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _nameController,
@@ -176,7 +176,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _FieldLabel('Purchase price'),
+                                const _FieldLabel('Purchase price'),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _purchasePriceController,
@@ -210,7 +210,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _FieldLabel('Selling price'),
+                                const _FieldLabel('Selling price'),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _sellingPriceController,
@@ -255,7 +255,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       const SizedBox(height: 14),
 
                       // ── Quantity ──────────────────────────────────────
-                      _FieldLabel('Initial stock quantity'),
+                      const _FieldLabel('Initial stock quantity'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _quantityController,

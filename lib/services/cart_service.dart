@@ -51,11 +51,11 @@ class CartService {
     final existing = await _db.getTransactionsForSale(draft.id!);
 
     // Check if item already in cart
-    final existing_line = existing.where((t) => t.itemId == item.id).toList();
+    final existingLine = existing.where((t) => t.itemId == item.id).toList();
 
-    if (existing_line.isNotEmpty) {
+    if (existingLine.isNotEmpty) {
       // Update quantity of existing line
-      final line = existing_line.first;
+      final line = existingLine.first;
       final newQty = line.quantity + quantity;
       // Delete old line and re-insert with merged quantity
       final db = await _db.database;

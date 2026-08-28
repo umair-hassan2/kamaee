@@ -59,7 +59,7 @@ class KhataStatementPdfGenerator {
                     children: [
                       pw.Text(
                         'STATEMENT FOR',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 8,
                             fontWeight: pw.FontWeight.bold,
                             letterSpacing: 1.0,
@@ -68,7 +68,7 @@ class KhataStatementPdfGenerator {
                       pw.SizedBox(height: 4),
                       pw.Text(
                         customer.name,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 18,
                             fontWeight: pw.FontWeight.bold,
                             color: _ink),
@@ -77,7 +77,7 @@ class KhataStatementPdfGenerator {
                         pw.SizedBox(height: 3),
                         pw.Text(
                           customer.phone,
-                          style: pw.TextStyle(fontSize: 10, color: _muted),
+                          style: const pw.TextStyle(fontSize: 10, color: _muted),
                         ),
                       ],
                     ],
@@ -88,7 +88,7 @@ class KhataStatementPdfGenerator {
                   children: [
                     pw.Text(
                       'KHATA STATEMENT',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                           fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
                           letterSpacing: 0.8,
@@ -97,14 +97,14 @@ class KhataStatementPdfGenerator {
                     pw.SizedBox(height: 4),
                     pw.Text(
                       generatedAt,
-                      style: pw.TextStyle(fontSize: 9, color: _muted),
+                      style: const pw.TextStyle(fontSize: 9, color: _muted),
                     ),
                     pw.SizedBox(height: 2),
                     pw.Text(
                       entries.isEmpty
                           ? 'All time'
                           : 'Since last settlement',
-                      style: pw.TextStyle(fontSize: 9, color: _mutedLight),
+                      style: const pw.TextStyle(fontSize: 9, color: _mutedLight),
                     ),
                   ],
                 ),
@@ -133,7 +133,7 @@ class KhataStatementPdfGenerator {
                         pw.Expanded(
                           flex: 3,
                           child: pw.Text('DATE',
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -142,7 +142,7 @@ class KhataStatementPdfGenerator {
                         pw.Expanded(
                           flex: 4,
                           child: pw.Text('DESCRIPTION',
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -152,7 +152,7 @@ class KhataStatementPdfGenerator {
                           width: 72,
                           child: pw.Text('DEBIT',
                               textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -162,7 +162,7 @@ class KhataStatementPdfGenerator {
                           width: 72,
                           child: pw.Text('CREDIT',
                               textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -172,7 +172,7 @@ class KhataStatementPdfGenerator {
                           width: 80,
                           child: pw.Text('BALANCE',
                               textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -207,7 +207,7 @@ class KhataStatementPdfGenerator {
                     children: [
                       pw.Text(
                         'TOTAL OUTSTANDING',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 8,
                             fontWeight: pw.FontWeight.bold,
                             letterSpacing: 1.0,
@@ -216,9 +216,9 @@ class KhataStatementPdfGenerator {
                       pw.SizedBox(height: 4),
                       pw.Text(
                         outstandingBalance > 0
-                            ? 'Amount due to ${shopName}'
+                            ? 'Amount due to $shopName'
                             : 'Account settled — no balance due',
-                        style: pw.TextStyle(fontSize: 10, color: _muted),
+                        style: const pw.TextStyle(fontSize: 10, color: _muted),
                       ),
                     ],
                   ),
@@ -245,7 +245,7 @@ class KhataStatementPdfGenerator {
                 children: [
                   pw.Text(
                     'PAY USING ANY OF THESE METHODS',
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                         fontSize: 8,
                         fontWeight: pw.FontWeight.bold,
                         letterSpacing: 1.0,
@@ -288,7 +288,7 @@ class KhataStatementPdfGenerator {
             alignment: pw.Alignment.center,
             child: pw.Text(
               'K',
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                 fontSize: 28,
                 fontWeight: pw.FontWeight.bold,
                 color: _green,
@@ -301,7 +301,7 @@ class KhataStatementPdfGenerator {
             children: [
               pw.Text(
                 shopName,
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                     fontSize: 18,
                     fontWeight: pw.FontWeight.bold,
                     color: _onDark),
@@ -309,7 +309,7 @@ class KhataStatementPdfGenerator {
               pw.SizedBox(height: 3),
               pw.Text(
                 'Khata Statement',
-                style: pw.TextStyle(fontSize: 11, color: _headingDark),
+                style: const pw.TextStyle(fontSize: 11, color: _headingDark),
               ),
             ],
           ),
@@ -356,7 +356,7 @@ class KhataStatementPdfGenerator {
                 flex: 3,
                 child: pw.Text(
                   dateStr,
-                  style: pw.TextStyle(fontSize: 9, color: _muted),
+                  style: const pw.TextStyle(fontSize: 9, color: _muted),
                 ),
               ),
               pw.Expanded(
@@ -372,7 +372,7 @@ class KhataStatementPdfGenerator {
                 child: pw.Text(
                   isCredit ? 'Rs ${e.amount.toStringAsFixed(0)}' : '',
                   textAlign: pw.TextAlign.right,
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                       fontSize: 9,
                       fontWeight: pw.FontWeight.bold,
                       color: _red),
@@ -383,7 +383,7 @@ class KhataStatementPdfGenerator {
                 child: pw.Text(
                   !isCredit ? 'Rs ${e.amount.toStringAsFixed(0)}' : '',
                   textAlign: pw.TextAlign.right,
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                       fontSize: 9,
                       fontWeight: pw.FontWeight.bold,
                       color: _greenDark),
@@ -433,7 +433,7 @@ class KhataStatementPdfGenerator {
           pw.Text(
             method.label,
             textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(
+            style: const pw.TextStyle(
                 fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
                 color: _ink),
@@ -457,16 +457,16 @@ class KhataStatementPdfGenerator {
             children: [
               pw.Text(
                 statementId,
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                     fontSize: 8, letterSpacing: 0.8, color: _muted),
               ),
               pw.Text(
                 'Powered by Kamaae',
-                style: pw.TextStyle(fontSize: 8, color: _mutedLight),
+                style: const pw.TextStyle(fontSize: 8, color: _mutedLight),
               ),
               pw.Text(
                 'Page $pageNumber of $pagesCount',
-                style: pw.TextStyle(fontSize: 8, color: _muted),
+                style: const pw.TextStyle(fontSize: 8, color: _muted),
               ),
             ],
           ),

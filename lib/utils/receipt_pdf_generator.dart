@@ -65,7 +65,7 @@ class ReceiptPdfGenerator {
                     alignment: pw.Alignment.center,
                     child: pw.Text(
                       'K',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 28,
                         fontWeight: pw.FontWeight.bold,
                         color: _green,
@@ -79,7 +79,7 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Text(
                           shopName,
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                             fontSize: 18,
                             fontWeight: pw.FontWeight.bold,
                             color: _onDark,
@@ -93,7 +93,7 @@ class ReceiptPdfGenerator {
                               if (shopAddress != null) shopAddress,
                               if (shopPhone != null) shopPhone,
                             ].join(' · '),
-                            style: pw.TextStyle(
+                            style: const pw.TextStyle(
                                 fontSize: 9, color: _headingDark),
                           ),
                       ],
@@ -115,7 +115,7 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Text(
                           'BILLED TO',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               fontSize: 8,
                               fontWeight: pw.FontWeight.bold,
                               letterSpacing: 1.0,
@@ -126,7 +126,7 @@ class ReceiptPdfGenerator {
                           customerName?.isNotEmpty == true
                               ? customerName!
                               : 'Walk-in Customer',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
                               color: _ink),
@@ -139,7 +139,7 @@ class ReceiptPdfGenerator {
                     children: [
                       pw.Text(
                         '#$billNum',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
                             color: _ink),
@@ -147,7 +147,7 @@ class ReceiptPdfGenerator {
                       pw.SizedBox(height: 2),
                       pw.Text(
                         dateStr,
-                        style: pw.TextStyle(fontSize: 9, color: _muted),
+                        style: const pw.TextStyle(fontSize: 9, color: _muted),
                       ),
                     ],
                   ),
@@ -173,7 +173,7 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Expanded(
                           child: pw.Text('ITEM',
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -183,7 +183,7 @@ class ReceiptPdfGenerator {
                           width: 36,
                           child: pw.Text('QTY',
                               textAlign: pw.TextAlign.center,
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -193,7 +193,7 @@ class ReceiptPdfGenerator {
                           width: 62,
                           child: pw.Text('AMOUNT',
                               textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(
+                              style: const pw.TextStyle(
                                   fontSize: 8,
                                   fontWeight: pw.FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -225,7 +225,7 @@ class ReceiptPdfGenerator {
                                   pw.SizedBox(height: 1),
                                   pw.Text(
                                     'Rs ${line.unitPrice.toStringAsFixed(0)} each',
-                                    style: pw.TextStyle(
+                                    style: const pw.TextStyle(
                                         fontSize: 8, color: _muted),
                                   ),
                                 ],
@@ -244,7 +244,7 @@ class ReceiptPdfGenerator {
                               child: pw.Text(
                                 'Rs ${line.revenue.toStringAsFixed(0)}',
                                 textAlign: pw.TextAlign.right,
-                                style: pw.TextStyle(
+                                style: const pw.TextStyle(
                                     fontSize: 11,
                                     fontWeight: pw.FontWeight.bold),
                               ),
@@ -278,7 +278,7 @@ class ReceiptPdfGenerator {
                     _summaryRow(
                       'Discount',
                       '− Rs ${sale.discountAmount.toStringAsFixed(0)}',
-                      color: PdfColor(0.725, 0.231, 0.196),
+                      color: const PdfColor(0.725, 0.231, 0.196),
                     ),
                     pw.Container(
                       height: 1,
@@ -325,7 +325,7 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Text(
                       isPartial ? 'Partial Payment' : 'On Khata',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                           fontSize: 11,
                           fontWeight: pw.FontWeight.bold,
                           color: _amber),
@@ -354,7 +354,7 @@ class ReceiptPdfGenerator {
               child: pw.Center(
                 child: pw.Text(
                   billId,
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                       fontSize: 8,
                       letterSpacing: 1.0,
                       color: _muted),
@@ -370,7 +370,7 @@ class ReceiptPdfGenerator {
                   pw.Center(
                     child: pw.Text(
                       'Shukriya!  ·  Thank you',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
                         color: _green,
@@ -381,7 +381,7 @@ class ReceiptPdfGenerator {
                   pw.Center(
                     child: pw.Text(
                       'Powered by Kamaae',
-                      style: pw.TextStyle(fontSize: 9, color: _mutedLight),
+                      style: const pw.TextStyle(fontSize: 9, color: _mutedLight),
                     ),
                   ),
                 ],

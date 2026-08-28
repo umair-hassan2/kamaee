@@ -112,7 +112,7 @@ class _MoreScreenState extends State<MoreScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                _SectionLabel('Analytics'),
+                const _SectionLabel('Analytics'),
                 const SizedBox(height: 10),
                 _MenuGroup(items: [
                   _MenuEntry(
@@ -141,7 +141,7 @@ class _MoreScreenState extends State<MoreScreen> {
                   ),
                 ]),
                 const SizedBox(height: 20),
-                _SectionLabel('Operations'),
+                const _SectionLabel('Operations'),
                 const SizedBox(height: 10),
                 _MenuGroup(items: [
                   _MenuEntry(
@@ -155,7 +155,7 @@ class _MoreScreenState extends State<MoreScreen> {
                   ),
                 ]),
                 const SizedBox(height: 20),
-                _SectionLabel('Preferences'),
+                const _SectionLabel('Preferences'),
                 const SizedBox(height: 10),
                 _MenuGroup(items: [
                   _MenuEntry(

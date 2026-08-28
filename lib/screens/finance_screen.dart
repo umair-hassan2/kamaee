@@ -1040,7 +1040,7 @@ class _ChartPlaceholder extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.bar_chart_outlined, size: 36, color: AppColors.mutedLight),
+          const Icon(Icons.bar_chart_outlined, size: 36, color: AppColors.mutedLight),
           const SizedBox(height: 8),
           Text(message, style: const TextStyle(color: AppColors.muted)),
         ],
@@ -1098,15 +1098,15 @@ class _NetProfitCard extends StatelessWidget {
             child: Icon(Icons.account_balance_outlined, color: color, size: 20),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Net Profit',
                   style: TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   'Gross Profit − Expenses',
                   style: TextStyle(fontSize: 11, color: AppColors.mutedLight),
@@ -1238,7 +1238,7 @@ class _ExpenseTile extends StatelessWidget {
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () => onDelete(expense.id!),
-                child: Icon(Icons.delete_outline, size: 18, color: AppColors.mutedLight),
+                child: const Icon(Icons.delete_outline, size: 18, color: AppColors.mutedLight),
               ),
             ],
           ),

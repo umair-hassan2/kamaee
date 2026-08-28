@@ -4,7 +4,7 @@ import 'package:kamaae/models/sale.dart';
 void main() {
   group('Sale model', () {
     test('toMap / fromMap round-trips all fields', () {
-      final sale = Sale(
+      const sale = Sale(
         id: 7,
         customerId: 3,
         totalAmount: 500,
@@ -29,7 +29,7 @@ void main() {
     });
 
     test('toMap omits id when null', () {
-      final sale = Sale(
+      const sale = Sale(
         totalAmount: 100,
         paidAmount: 100,
         khataAmount: 0,
@@ -58,7 +58,7 @@ void main() {
     });
 
     test('copyWith overrides only specified fields', () {
-      final original = Sale(
+      const original = Sale(
         id: 1,
         totalAmount: 100,
         paidAmount: 100,

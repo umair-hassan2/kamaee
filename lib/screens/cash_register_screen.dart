@@ -289,7 +289,7 @@ class _ClosedRegisterCard extends StatelessWidget {
           Container(
             width: 72,
             height: 72,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.paperDark,
               shape: BoxShape.circle,
             ),

@@ -498,7 +498,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Container(
                               width: 38,
                               height: 38,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: AppColors.greenLight,
                                 shape: BoxShape.circle,
                               ),
@@ -717,10 +717,10 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               autofocus: true,
               onChanged: (v) => setState(() => _query = v),
               style: instrument(fontSize: 14),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Search…',
-                prefixIcon: const Icon(Symbols.search, size: 20),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                prefixIcon: Icon(Symbols.search, size: 20),
+                contentPadding: EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),

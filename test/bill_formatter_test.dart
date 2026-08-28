@@ -3,12 +3,12 @@ import 'package:kamaae/utils/bill_formatter.dart';
 
 void main() {
   final items = [
-    BillItem(name: 'Rice 2kg', qty: 3, unitPrice: 90),
-    BillItem(name: 'Oil 1L', qty: 2, unitPrice: 180),
+    const BillItem(name: 'Rice 2kg', qty: 3, unitPrice: 90),
+    const BillItem(name: 'Oil 1L', qty: 2, unitPrice: 180),
   ];
 
   test('BillItem.total multiplies qty by unitPrice', () {
-    final item = BillItem(name: 'Sugar', qty: 4, unitPrice: 60);
+    const item = BillItem(name: 'Sugar', qty: 4, unitPrice: 60);
     expect(item.total, 240);
   });
 
@@ -92,7 +92,7 @@ void main() {
   });
 
   test('format truncates long item names at 14 chars', () {
-    final longName = BillItem(name: 'Very Long Product Name Here', qty: 1, unitPrice: 100);
+    const longName = BillItem(name: 'Very Long Product Name Here', qty: 1, unitPrice: 100);
     final bill = BillFormatter.format(
       items: [longName],
       total: 100,

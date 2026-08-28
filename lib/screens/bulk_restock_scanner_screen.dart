@@ -102,7 +102,9 @@ class _BulkRestockScannerScreenState extends State<BulkRestockScannerScreen> {
     if (_isProcessing) return;
     final now = DateTime.now();
     if (_lastScanTime != null &&
-        now.difference(_lastScanTime!) < _scanInterval) return;
+        now.difference(_lastScanTime!) < _scanInterval) {
+      return;
+    }
     _lastScanTime = now;
     _isProcessing = true;
     _scanFrame(image);
@@ -365,10 +367,10 @@ class _BulkRestockScannerScreenState extends State<BulkRestockScannerScreen> {
           height: _isQrMode ? 260 : 200,
           child: Stack(
             children: [
-              _Corner(top: true, left: true),
-              _Corner(top: true, left: false),
-              _Corner(top: false, left: true),
-              _Corner(top: false, left: false),
+              const _Corner(top: true, left: true),
+              const _Corner(top: true, left: false),
+              const _Corner(top: false, left: true),
+              const _Corner(top: false, left: false),
               Center(
                 child: Container(
                   height: 2,
@@ -448,7 +450,7 @@ class _CornerPainter extends CustomPainter {
       ..strokeCap = StrokeCap.square
       ..style = PaintingStyle.stroke;
 
-    final r = const Radius.circular(4);
+    const r = Radius.circular(4);
     final path = Path();
 
     if (top && left) {
