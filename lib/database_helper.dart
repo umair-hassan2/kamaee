@@ -505,6 +505,36 @@ class DatabaseHelper {
     });
   }
 
+  // Returns a map of item_id → total units sold since [since].
+  Future<Map<int, double>> getItemSaleQuantitiesSince(DateTime since) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT item_id, SUM(quantity) AS total_qty '
+      'FROM transactions WHERE type = ? AND timestamp >= ? '
+      'GROUP BY item_id',
+      [TransactionType.sell.name, since.millisecondsSinceEpoch],
+    );
+    return {
+      for (final r in rows)
+        r['item_id'] as int: (r['total_qty'] as num).toDouble(),
+    };
+  }
+
+  // Returns a map of customer_id → oldest credit entry timestamp (ms).
+  Future<Map<int, int>> getOldestCreditTimestampPerCustomer() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT customer_id, MIN(timestamp) AS oldest_credit '
+      'FROM khata_entries WHERE type = ? '
+      'GROUP BY customer_id',
+      ['credit'],
+    );
+    return {
+      for (final r in rows)
+        r['customer_id'] as int: r['oldest_credit'] as int,
+    };
+  }
+
   Future<List<Sale>> getCompletedSalesBetween(DateTime start, DateTime end) async {
     final db = await database;
     final rows = await db.query(

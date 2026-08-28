@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "61926360083",
+    "project_id": "kamaee-assistant-snapshots",
+    "storage_bucket": "kamaee-assistant-snapshots.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:61926360083:android:487501d05a232b7389ebe6",
+        "android_client_info": {
+          "package_name": "com.example.kamaae"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUpT0zoy8B0qGNl1BNxJcZlyIHdE29OMI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

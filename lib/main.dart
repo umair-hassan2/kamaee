@@ -1,17 +1,22 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/cart_service.dart';
 import 'services/finance_service.dart';
 import 'services/notification_service.dart';
 import 'services/settings_service.dart';
+import 'services/shop_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await SettingsService().load();
   await NotificationService().init();
   await CartService().init();
+  ShopService().init(); // fire-and-forget; Firestore queues if offline
   _scheduleDailySummary();
   runApp(const MyApp());
 }

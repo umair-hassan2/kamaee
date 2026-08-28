@@ -5,6 +5,7 @@ import '../services/khata_service.dart';
 import '../models/item.dart';
 import '../models/sale.dart';
 import '../models/transaction.dart';
+import '../sync/sync_registry.dart';
 import 'notification_service.dart';
 import 'settings_service.dart';
 
@@ -229,6 +230,7 @@ class CartService {
     }
 
     cartCount.value = 0;
+    SyncRegistry.trigger(SyncTrigger.sale);
     return completed;
   }
 
