@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kamaae/database_helper.dart';
 import 'package:kamaae/models/expense.dart';
 import 'package:kamaae/services/expense_service.dart';
 
@@ -7,12 +6,10 @@ import 'helpers/test_database.dart';
 
 void main() {
   late ExpenseService service;
-  late DatabaseHelper db;
 
   setUp(() async {
     await setUpTestDatabase();
     service = ExpenseService();
-    db = DatabaseHelper();
   });
 
   tearDown(() async {

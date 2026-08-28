@@ -26,7 +26,7 @@ class CartService {
     final existing = await _db.getDraftSale();
     if (existing != null) return existing;
 
-    final id = await _db.insertSale(Sale(
+    await _db.insertSale(Sale(
       totalAmount: 0,
       paidAmount: 0,
       khataAmount: 0,

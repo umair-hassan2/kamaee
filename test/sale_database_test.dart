@@ -59,7 +59,7 @@ void main() {
     });
 
     test('updateSale persists changes', () async {
-      final id = await db.insertSale(Sale(
+      await db.insertSale(Sale(
         totalAmount: 0,
         paidAmount: 0,
         khataAmount: 0,

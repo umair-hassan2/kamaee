@@ -418,7 +418,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                             MaterialPageRoute(
                                 builder: (_) => const CartScreen()),
                           );
-                          if (mounted) Navigator.pop(context);
+                          if (!mounted) return;
+                          Navigator.pop(context);
                         },
                         child: Stack(
                           clipBehavior: Clip.none,
