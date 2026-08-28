@@ -2,7 +2,13 @@ name: Daily README Update
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    # Twice a day — Mon, Tue, Fri (08:00 and 20:00 UTC = 1 AM PKT)
+    - cron: '0 8 * * 1,2,5'
+    - cron: '0 20 * * 1,2,5'
+    # Thrice a day — Wed, Thu, Sat, Sun (06:00, 13:00, 20:00 UTC)
+    - cron: '0 6 * * 0,3,4,6'
+    - cron: '0 13 * * 0,3,4,6'
+    - cron: '0 20 * * 0,3,4,6'
   workflow_dispatch:
 
 jobs:
@@ -28,7 +34,7 @@ jobs:
       - name: Commit and push
         run: |
           git config user.name "Umair Hassan"
-          git config user.email "uhassan@noon.com"
+          git config user.email "umairpu24@gmail.com"
           git add README.md
           git diff --cached --quiet || git commit -m "chore: daily README update [skip ci]"
           git push
