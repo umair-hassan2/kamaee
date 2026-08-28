@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import '../database_helper.dart';
 import '../models/customer.dart';
 import '../models/khata_entry.dart';
+import '../sync/sync_registry.dart';
 
 class KhataService {
   Future<Database> get _db async => DatabaseHelper().database;
@@ -42,12 +43,15 @@ class KhataService {
 
   Future<int> addEntry(KhataEntry entry) async {
     final db = await _db;
-    return db.insert('khata_entries', entry.toMap());
+    final id = await db.insert('khata_entries', entry.toMap());
+    SyncRegistry.trigger(SyncTrigger.khata);
+    return id;
   }
 
   Future<void> deleteEntry(int id) async {
     final db = await _db;
     await db.delete('khata_entries', where: 'id = ?', whereArgs: [id]);
+    SyncRegistry.trigger(SyncTrigger.khata);
   }
 
   Future<List<KhataEntry>> getEntriesForCustomer(int customerId) async {

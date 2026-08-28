@@ -2,6 +2,7 @@ import 'dart:async';
 import '../database_helper.dart';
 import '../models/item.dart';
 import 'finance_service.dart';
+import '../sync/sync_registry.dart';
 import 'notification_service.dart';
 import 'settings_service.dart';
 
@@ -39,7 +40,7 @@ class InventoryService {
     final updated = item.copyWith(quantity: item.quantity + quantity);
     await _db.updateItem(updated);
     await _finance.logRestock(item, quantity);
-
+    SyncRegistry.trigger(SyncTrigger.restock);
     return updated;
   }
 }
