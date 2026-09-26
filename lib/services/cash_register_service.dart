@@ -1,14 +1,18 @@
 import 'package:sqflite/sqflite.dart';
 import '../database_helper.dart';
 import '../models/cash_session.dart';
+import '../models/sale.dart';
 import '../models/transaction.dart';
 
 class CashRegisterService {
   Future<Database> get _db async => DatabaseHelper().database;
 
   Future<double> getExpectedCashForSession(CashSession session) async {
-    final salesRevenue = await _getSalesRevenueSince(session.openedAt);
-    return session.openingCash + salesRevenue;
+    final cashReceived = await _getCashReceivedSince(
+      session.openedAt,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    return session.openingCash + cashReceived;
   }
 
   Future<CashSession?> getActiveSession() async {
@@ -36,14 +40,28 @@ class CashRegisterService {
     return CashSession(id: id, openingCash: openingCash, openedAt: now);
   }
 
-  Future<double> _getSalesRevenueSince(int openedAt) async {
+  /// Cash actually received in the half-open window [openedAt, upperBoundMs):
+  /// amounts paid on completed checkout sales, plus direct-sell revenue.
+  /// Credit (khata) revenue never reaches the drawer and is excluded.
+  Future<double> _getCashReceivedSince(int openedAt, int upperBoundMs) async {
     final db = await _db;
-    final rows = await db.rawQuery(
-      'SELECT SUM(revenue) AS total FROM transactions '
-      'WHERE type = ? AND timestamp >= ?',
-      [TransactionType.sell.name, openedAt],
+
+    final saleRows = await db.rawQuery(
+      'SELECT SUM(paid_amount) AS total FROM sales '
+      'WHERE status = ? AND timestamp >= ? AND timestamp < ?',
+      [SaleStatus.completed.name, openedAt, upperBoundMs],
     );
-    return (rows.first['total'] as num?)?.toDouble() ?? 0.0;
+    final directSellRows = await db.rawQuery(
+      'SELECT SUM(revenue) AS total FROM transactions '
+      'WHERE type = ? AND sale_id IS NULL '
+      'AND timestamp >= ? AND timestamp < ?',
+      [TransactionType.sell.name, openedAt, upperBoundMs],
+    );
+
+    final paid = (saleRows.first['total'] as num?)?.toDouble() ?? 0.0;
+    final directSells =
+        (directSellRows.first['total'] as num?)?.toDouble() ?? 0.0;
+    return paid + directSells;
   }
 
   Future<int> getSalesCountSince(int openedAt) async {
@@ -60,13 +78,16 @@ class CashRegisterService {
     double closingCash, {
     String? notes,
   }) async {
+    final closeInitiatedAt = DateTime.now().millisecondsSinceEpoch;
     final session = await getActiveSession();
     if (session == null) throw StateError('No active cash session.');
 
-    final salesRevenue = await _getSalesRevenueSince(session.openedAt);
-    final expectedCash = session.openingCash + salesRevenue;
+    final cashReceived = await _getCashReceivedSince(
+      session.openedAt,
+      closeInitiatedAt,
+    );
+    final expectedCash = session.openingCash + cashReceived;
     final discrepancy = closingCash - expectedCash;
-    final now = DateTime.now().millisecondsSinceEpoch;
 
     final db = await _db;
     await db.update(
@@ -75,7 +96,7 @@ class CashRegisterService {
         'closing_cash': closingCash,
         'expected_cash': expectedCash,
         'discrepancy': discrepancy,
-        'closed_at': now,
+        'closed_at': closeInitiatedAt,
         'notes': notes,
       },
       where: 'id = ?',
@@ -89,7 +110,7 @@ class CashRegisterService {
       expectedCash: expectedCash,
       discrepancy: discrepancy,
       openedAt: session.openedAt,
-      closedAt: now,
+      closedAt: closeInitiatedAt,
       notes: notes,
     );
   }
