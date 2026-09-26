@@ -34,7 +34,7 @@ class DatabaseHelper {
         join(await getDatabasesPath(), 'kamaae.db');
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -57,6 +57,7 @@ class DatabaseHelper {
     await _createSalesTable(db);
     await _createExpensesTable(db);
     await _createCashSessionsTable(db);
+    await _createStockCountsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -92,6 +93,28 @@ class DatabaseHelper {
         'ALTER TABLE sales ADD COLUMN is_returned INTEGER NOT NULL DEFAULT 0',
       );
     }
+    if (oldVersion < 9) {
+      await _createStockCountsTable(db);
+    }
+  }
+
+  Future<void> _createStockCountsTable(Database db) async {
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS stock_counts ('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'item_id INTEGER NOT NULL, '
+      'item_name TEXT NOT NULL, '
+      'system_qty INTEGER NOT NULL, '
+      'physical_qty INTEGER NOT NULL, '
+      'variance INTEGER NOT NULL CHECK (variance = physical_qty - system_qty), '
+      'counted_at INTEGER NOT NULL, '
+      'FOREIGN KEY (item_id) REFERENCES items(id)'
+      ')',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_stock_counts_item_counted_at '
+      'ON stock_counts(item_id, counted_at)',
+    );
   }
 
   Future<void> _createSalesTable(Database db) async {

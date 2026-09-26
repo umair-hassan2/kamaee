@@ -1,6 +1,8 @@
 import 'package:kamaae/database_helper.dart';
+import 'package:kamaae/models/cash_session.dart';
 import 'package:kamaae/models/finance_models.dart';
 import 'package:kamaae/models/item.dart';
+import 'package:kamaae/models/sale.dart';
 import 'package:kamaae/models/transaction.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -62,6 +64,50 @@ Future<void> insertTestTransaction(
       timestamp: timestamp,
     ),
   );
+}
+
+/// Moves a session's open time into the past so the cash window under test
+/// spans a deterministic range instead of a sub-millisecond one.
+Future<CashSession> backdateSession(
+  DatabaseHelper db,
+  CashSession session, {
+  Duration ago = const Duration(hours: 1),
+}) async {
+  final openedAt = DateTime.now().subtract(ago).millisecondsSinceEpoch;
+  final database = await db.database;
+  await database.update(
+    'cash_sessions',
+    {'opened_at': openedAt},
+    where: 'id = ?',
+    whereArgs: [session.id],
+  );
+  return CashSession(
+    id: session.id,
+    openingCash: session.openingCash,
+    openedAt: openedAt,
+  );
+}
+
+Future<Sale> insertTestSale(
+  DatabaseHelper db, {
+  required double totalAmount,
+  required double paidAmount,
+  required DateTime timestamp,
+  SaleStatus status = SaleStatus.completed,
+  PaymentMethod paymentMethod = PaymentMethod.cash,
+  int? customerId,
+}) async {
+  final sale = Sale(
+    customerId: customerId,
+    totalAmount: totalAmount,
+    paidAmount: paidAmount,
+    khataAmount: totalAmount - paidAmount,
+    paymentMethod: paymentMethod,
+    status: status,
+    timestamp: timestamp.millisecondsSinceEpoch,
+  );
+  final id = await db.insertSale(sale);
+  return sale.copyWith(id: id);
 }
 
 String chartHourLabel(int hour) {

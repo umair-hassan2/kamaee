@@ -46,3 +46,8 @@ app.*.map.json
 
 .cursor/
 .claude/
+
+# Local planning notes and helper scripts — not versioned
+docs/
+roadmap/
+scripts/

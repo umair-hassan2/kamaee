@@ -9,6 +9,7 @@ import 'cash_register_screen.dart';
 import 'finance_screen.dart';
 import 'sales_history_screen.dart';
 import 'settings_screen.dart';
+import 'stock_audit_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -152,6 +153,14 @@ class _MoreScreenState extends State<MoreScreen> {
                     subtitle: 'Open & close daily register',
                     badge: _registerOpen ? 'OPEN' : null,
                     onTap: () => _push(const CashRegisterScreen()),
+                  ),
+                  _MenuEntry(
+                    icon: Symbols.fact_check,
+                    iconBg: AppColors.tealLight,
+                    iconColor: AppColors.teal,
+                    label: 'Stock Audit',
+                    subtitle: 'Count shelf stock & track shortages',
+                    onTap: () => _push(const StockAuditScreen()),
                   ),
                 ]),
                 const SizedBox(height: 20),
