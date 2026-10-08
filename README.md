@@ -3,4 +3,4 @@
 A Flutter app for managing inventory with barcode scanning.
 Track items, record sales and purchases, and view basic finance summaries.
 All data is stored locally on your device.
-Repo was updated automatically on 2026-10-08 [crontab]
+Repo was updated automatically on 2026-10-08 [GH Actions]
